@@ -2,12 +2,13 @@
 /* Compass service worker — network-first with offline cache fallback.
    Served from the site root with Service-Worker-Allowed: / so it can also
    cache the /engine modules that live outside /web. */
-const CACHE = 'compass-v1'
+const CACHE = 'compass-v2'
 const SHELL = [
   '/web/', '/web/index.html', '/web/styles.css', '/web/app.js', '/web/circumplex.js',
-  '/web/manifest.webmanifest', '/web/icon.svg',
+  '/web/archetypeArt.js', '/web/manifest.webmanifest', '/web/icon.svg',
   '/engine/index.js', '/engine/values.js', '/engine/portraitItems.js',
   '/engine/maxdiffBlocks.js', '/engine/scoring.js',
+  '/engine/careerArchetypes.js', '/engine/relationshipCompass.js',
 ]
 
 self.addEventListener('install', (e) => {

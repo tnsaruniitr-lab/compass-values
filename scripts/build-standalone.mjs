@@ -20,8 +20,11 @@ function nsFor(spec) {
   if (spec.endsWith('/portraitItems.js')) return '__mod_portraitItems'
   if (spec.endsWith('/maxdiffBlocks.js')) return '__mod_maxdiffBlocks'
   if (spec.endsWith('/scoring.js')) return '__mod_scoring'
+  if (spec.endsWith('/careerArchetypes.js')) return '__mod_careerArchetypes'
+  if (spec.endsWith('/relationshipCompass.js')) return '__mod_relationshipCompass'
   if (spec.endsWith('/index.js')) return '__engine' // the engine aggregator
   if (spec.endsWith('/circumplex.js')) return '__mod_circumplex'
+  if (spec.endsWith('/archetypeArt.js')) return '__mod_archetypeArt'
   throw new Error('unknown import specifier: ' + spec)
 }
 
@@ -58,9 +61,12 @@ const bundle = [
   wrap('engine/portraitItems.js', '__mod_portraitItems'),
   wrap('engine/maxdiffBlocks.js', '__mod_maxdiffBlocks'),
   wrap('engine/scoring.js', '__mod_scoring'),
-  'const __engine = Object.assign({}, __mod_values, __mod_portraitItems, __mod_maxdiffBlocks, __mod_scoring);',
+  wrap('engine/careerArchetypes.js', '__mod_careerArchetypes'),
+  wrap('engine/relationshipCompass.js', '__mod_relationshipCompass'),
+  'const __engine = Object.assign({}, __mod_values, __mod_portraitItems, __mod_maxdiffBlocks, __mod_scoring, __mod_careerArchetypes, __mod_relationshipCompass);',
   '/* view */',
   wrap('web/circumplex.js', '__mod_circumplex'),
+  wrap('web/archetypeArt.js', '__mod_archetypeArt'),
   wrap('web/app.js', null),
 ].join('\n\n')
 

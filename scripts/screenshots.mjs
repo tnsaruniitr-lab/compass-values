@@ -49,28 +49,37 @@ await page.click('[data-begin]')
 await page.waitForSelector('.md-list'); await sleep(600)
 await page.screenshot({ path: `${OUT}/02-maxdiff.png` })
 
-for (let b = 0; b < 10; b++) {
-  await page.waitForSelector('.md-list')
+// MaxDiff — drive the (dynamic-length) block sequence.
+let guard = 0
+while (await page.$('.md-list') && guard++ < 40) {
   const ids = await page.$$eval('.md-row', (rows) => rows.map((r) => r.getAttribute('data-id')))
+  if (!ids.length) break
   const most = ids.find((id) => HIGH.has(id)) || ids[0]
   let least = ids.find((id) => LOW.has(id)) || ids[ids.length - 1]
   if (least === most) least = ids[ids.length - 1]
   await page.click(`.md-row[data-id="${most}"] button.most`)
   await page.click(`.md-row[data-id="${least}"] button.least`)
-  await sleep(360)
+  await sleep(340)
 }
 
+// Portrait — rate each (dynamic-length) item.
 await page.waitForSelector('.quote')
-for (let i = 0; i < 20; i++) {
-  await page.waitForSelector('.quote')
+let i = 0
+while (await page.$('.quote') && i < 40) {
   const vid = await page.$eval('.quote', (q) => q.getAttribute('data-value'))
   const val = HIGH.has(vid) ? 6 : LOW.has(vid) ? 2 : 4
-  if (i === 6) { await sleep(400); await page.screenshot({ path: `${OUT}/03-portrait.png` }) }
+  if (i === 4) { await sleep(400); await page.screenshot({ path: `${OUT}/03-portrait.png` }) }
   await page.click(`.dotbtn[data-val="${val}"]`); await sleep(240)
+  i++
 }
 
-await page.waitForSelector('.hero-title'); await sleep(1600)
-await page.screenshot({ path: `${OUT}/04-results.png`, fullPage: true })
+// Story results — capture the constellation, the career reveal, and the compass.
+await page.waitForSelector('.scene-work'); await sleep(1400)
+await page.screenshot({ path: `${OUT}/04-results.png` })
+const work = await page.$('.scene-work'); await work.scrollIntoViewIfNeeded(); await sleep(500)
+await page.screenshot({ path: `${OUT}/05-career.png` })
+const love = await page.$('.scene-love'); await love.scrollIntoViewIfNeeded(); await sleep(500)
+await page.screenshot({ path: `${OUT}/06-love.png` })
 
 console.log('Saved screenshots →', OUT)
 await browser.close()

@@ -2,8 +2,10 @@
 import {
   PORTRAIT_ITEMS, PORTRAIT_SCALE, MAXDIFF_BLOCKS, VALUE_BY_ID, valueById,
   HIGHER_ORDER_META, HIGHER_ORDER_DEEP, HIGHER_ORDER, analyze,
+  careerReport, relationshipCompass, relationshipSignal,
 } from '../engine/index.js'
 import { renderCircumplex } from './circumplex.js'
+import { archetypeArt } from './archetypeArt.js'
 
 const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
@@ -58,13 +60,13 @@ function viewWelcome() {
         <h1 class="display">Discover your <em>true</em>&nbsp;self</h1>
         <p class="lede">
           Uncover the values you actually live by — and what they mean for the
-          <strong>career</strong> and the <strong>kind of partner</strong> that fit you best.
-          In about five minutes of honest trade-offs, Compass maps what really drives you,
+          <strong>work that fits you</strong> and <strong>how you love</strong>.
+          In a few minutes of honest trade-offs, Compass maps what really drives you,
           grounded in the <strong>Schwartz model of basic human values</strong>.
         </p>
         <div class="btn-row">
           <button class="btn" data-begin>Begin →</button>
-          <span class="fine">~5 minutes · ${TOTAL} quick choices</span>
+          <span class="fine">~3 minutes · ${TOTAL} quick choices</span>
         </div>
         <p class="fine" style="margin-top:26px">
           Built for honest self-reflection and grounded in research. Prototype items —
@@ -174,6 +176,9 @@ function backFromPortrait() {
 }
 
 /* ------------------------------------------------------------------- results */
+/** Map a signed lean (~ z-score range) to a 2–98% knob position. */
+const knobPos = (v, scale = 22) => 50 + Math.max(-46, Math.min(46, v * scale))
+
 function viewResults() {
   const maxdiffChoices = MAXDIFF_BLOCKS.map((b) => ({ blockId: b.id, ...(state.md[b.id] || { best: null, worst: null }) }))
   const { profile } = analyze({
@@ -181,87 +186,134 @@ function viewResults() {
     maxdiffBlocks: MAXDIFF_BLOCKS, maxdiffChoices,
   })
 
+  const career = careerReport(profile, VALUE_BY_ID, 3)
+  const compass = relationshipCompass(profile)
+  const signal = relationshipSignal(profile)
+  const dom = HIGHER_ORDER_META[profile.dominantHigher]
+
+  /* ---- Scene 1: you (the constellation) ---- */
+  const sceneYou = `
+    <section class="scene scene-you">
+      <div class="scene-inner">
+        <div class="eyebrow">Your map</div>
+        <h2 class="scene-h" style="color:${hoColor(profile.dominantHigher)}">${dom.name}</h2>
+        <p class="scene-lede">Here's the shape of what you value — your centre of gravity and the pulls around it.</p>
+        <div class="constellation">${renderCircumplex(profile, { theme })}</div>
+      </div>
+      <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
+    </section>`
+
+  /* ---- Scene 2: what drives you ---- */
   const lo = -1.6; const hi = 1.6
   const pctOf = (c) => Math.round(Math.max(0, Math.min(1, (c - lo) / (hi - lo))) * 100)
-  const confChip = (k) => `<span class="chip conf-${k}"><span class="d"></span>${k === 'single' ? 'one signal' : k} confidence</span>`
-
-  const top = profile.ranked.slice(0, 5).map((id, i) => {
+  const drivers = profile.ranked.slice(0, 3).map((id, i) => {
     const v = valueById(id)
     return `
-      <div class="vrow">
-        <span class="vrank">${i + 1}</span>
-        <span class="vname">${v.name}<small>${v.blurb}</small>
+      <div class="driver">
+        <span class="dn">${i + 1}</span>
+        <div class="dbody">
+          <strong style="color:${v.color}">${v.name}</strong>
           <span class="meter"><i style="width:${pctOf(profile.combined[id])}%;background:linear-gradient(90deg,${v.color},${v.color}99)"></i></span>
-        </span>
-        ${confChip(profile.valueConfidence[id])}
+          <small>${v.blurb}</small>
+        </div>
       </div>`
   }).join('')
+  const sceneDrivers = `
+    <section class="scene">
+      <div class="scene-inner">
+        <div class="eyebrow">What drives you</div>
+        <h2 class="scene-h2">The three that rose to the top</h2>
+        <p class="scene-fine">Relative priorities — most → least important <em>to you</em>, not a score against other people.</p>
+        <div class="drivers">${drivers}</div>
+      </div>
+    </section>`
 
-  const tensions = profile.tensions.length
-    ? `<div class="panel"><h3>⚡ Live tensions</h3>
-        <p class="fine" style="margin-bottom:8px">Opposing values you <em>both</em> prize highly — the real trade-offs you navigate.</p>
-        ${profile.tensions.map((t) => `<div class="tension">${valueById(t.a).name} <span class="vs">⟷</span> ${valueById(t.b).name}</div>`).join('')}
+  /* ---- Scene 3: your work (career archetype reveal) ---- */
+  const primary = career[0]
+  const alsoLeans = career.slice(1, 3).filter((a) => a.band !== 'weak')
+  const roles = primary.roles.map((r) => `<span class="role">${r}</span>`).join('')
+  const alsoHtml = alsoLeans.length
+    ? `<div class="also">
+         <span class="also-k">You also lean</span>
+         ${alsoLeans.map((a) => `<span class="also-chip" style="--accent:${a.accent}">${a.name}</span>`).join('')}
        </div>`
     : ''
-
-  const axes = [
-    { pos: 'self_transcendence', neg: 'self_enhancement' },
-    { pos: 'openness', neg: 'conservation' },
-  ].map((ax) => {
-    const pv = profile.higher[ax.pos]; const nv = profile.higher[ax.neg]
-    const diff = pv - nv // positive → leans pos side
-    const knob = 50 + Math.max(-48, Math.min(48, diff * 26))
-    const pm = HIGHER_ORDER_META[ax.pos]; const nm = HIGHER_ORDER_META[ax.neg]
-    const leanColor = hoColor(diff >= 0 ? ax.pos : ax.neg)
-    return `
-      <div class="axisbar">
-        <div class="lbls"><span style="color:${hoColor(ax.neg)}">${nm.name}</span><span style="color:${hoColor(ax.pos)}">${pm.name}</span></div>
-        <div class="axistrack"><span class="mid"></span>
-          <span class="knob" style="left:${knob}%;background:${leanColor};color:${leanColor}"></span>
+  const sceneWork = `
+    <section class="scene scene-work" style="--accent:${primary.accent}">
+      <div class="scene-inner">
+        <div class="eyebrow">The work that fits you</div>
+        <div class="arch-hero" data-key="${primary.key}">
+          ${archetypeArt(primary, { theme })}
+          <img class="arch-photo" alt="" data-src="./img/archetype-${primary.key}.webp">
+          <div class="arch-band band-${primary.band}">${primary.band === 'strong' ? 'strong fit' : primary.band === 'clear' ? 'clear lean' : 'a lean'}</div>
         </div>
-      </div>`
-  }).join('')
+        <h2 class="scene-h2 arch-name">${primary.name}</h2>
+        <p class="arch-tag">${primary.tagline}</p>
+        <p class="arch-story">${primary.reasoning}</p>
+        <div class="roles">${roles}</div>
+        <p class="anti-fit">↘ What would chafe: ${primary.antiFit}</p>
+        ${alsoHtml}
+        <p class="scene-fine calib">Values point to the kind of work you'll <em>enjoy</em> — not what you'll be best <em>at</em>, and not destiny. The science links values to job satisfaction modestly; treat this as a direction worth exploring.</p>
+      </div>
+    </section>`
 
-  const dom = HIGHER_ORDER_META[profile.dominantHigher]
-  const conv = profile.convergence == null ? null : Math.round(profile.convergence * 100)
+  /* ---- Scene 4: how you love (relationship compass) ---- */
+  const dims = compass.map((d) => `
+    <div class="cdim">
+      <div class="clabels"><span>${d.left}</span><span>${d.right}</span></div>
+      <div class="ctrack"><span class="cmid"></span><span class="cknob" style="left:${knobPos(d.value)}%"></span></div>
+      <p class="creflect">${d.reflection}</p>
+      <p class="ctalk">💬 ${d.talk}</p>
+    </div>`).join('')
+  const sceneLove = `
+    <section class="scene scene-love">
+      <div class="scene-inner">
+        <div class="eyebrow">How you love</div>
+        <h2 class="scene-h2">Your values, in relationships</h2>
+        <p class="scene-fine">Not a “type” to find — the science says that can't be predicted. This is how <em>you</em> tend to show up, and what's worth talking about with anyone you're close to.</p>
+        <div class="compass">${dims}</div>
+        <p class="signal">✨ ${signal.text}</p>
+      </div>
+    </section>`
 
-  mount(`
-    <section class="view wide">
-      <div class="card">
-        ${topbar(false)}
-        <div class="results-grid">
-          <div>
-            <div class="hero-orient">Your centre of gravity</div>
-            <h2 class="hero-title" style="color:${hoColor(profile.dominantHigher)}">${dom.name}</h2>
-            <p class="fine" style="margin-bottom:18px">
-              ${conv == null ? '' : `Your two signals agreed ~${conv}% — a rough, uncalibrated confidence cue.`}
-            </p>
-            ${renderCircumplex(profile, { theme })}
-          </div>
-          <div>
-            <div class="hero-orient">What matters most — to you</div>
-            <p class="fine" style="margin:6px 0 14px">These are <em>relative</em> priorities (most → least important to you), not absolute scores or a comparison to other people.</p>
-            <div class="vlist">${top}</div>
-            <div class="panel" style="margin-top:18px"><h3>Your two value axes</h3>${axes}</div>
-            ${tensions}
-          </div>
-        </div>
-
+  /* ---- Scene 5: tensions + close ---- */
+  const tensions = profile.tensions.length
+    ? `<div class="tensions">
+         ${profile.tensions.map((t) => `<div class="tension">${valueById(t.a).name} <span class="vs">⟷</span> ${valueById(t.b).name}</div>`).join('')}
+       </div>
+       <p class="scene-fine">Opposing values you <em>both</em> prize — the real trade-offs you navigate, in work and in love.</p>`
+    : `<p class="scene-fine">Your top values sit comfortably together — no strong internal tug-of-war surfaced.</p>`
+  const sceneClose = `
+    <section class="scene scene-close">
+      <div class="scene-inner">
+        <div class="eyebrow">The tensions you carry</div>
+        <h2 class="scene-h2">Where you'll feel the pull</h2>
+        ${tensions}
         <div class="disclaimer">
-          <p class="fine">
-            <strong>Read this as a mirror, not a verdict.</strong> This prototype maps the priorities behind your
-            choices using the Schwartz circumplex. It is not a personality type, not clinical, and not a validated
-            instrument — some values are measured less reliably than others. The most useful question isn't
-            “is this exactly right?” but “where does it ring true, and where doesn't it — and why?”
+          <p class="scene-fine">
+            <strong>A mirror, not a verdict.</strong> A prototype built on the Schwartz circumplex — not a personality
+            type, not clinical, not validated. The useful question isn't “is this exactly right?” but “where does it
+            ring true — and where doesn't it?”
           </p>
         </div>
         <div class="foot">
-          <button class="btn ghost" data-restart>Start again</button>
-          <p class="fine" style="margin-top:14px">Built on <a href="../RESEARCH_AND_PLAN.md">the research &amp; product plan →</a></p>
+          <button class="btn" data-restart>Start again</button>
+          <p class="scene-fine" style="margin-top:14px"><a href="../docs/RESEARCH_values-to-career-and-partner.md">The research behind this →</a></p>
         </div>
       </div>
-    </section>`)
+    </section>`
 
+  mount(`<div class="story">${sceneYou}${sceneDrivers}${sceneWork}${sceneLove}${sceneClose}</div>`)
+
+  // Try to load the AI illustration for the primary archetype; if absent, the
+  // generative SVG art behind it remains (graceful, offline-friendly).
+  root.querySelectorAll('.arch-photo').forEach((img) => {
+    const src = img.getAttribute('data-src')
+    if (!src) return
+    img.addEventListener('error', () => img.remove())
+    img.addEventListener('load', () => img.classList.add('loaded'))
+    img.setAttribute('src', src)
+  })
   root.querySelector('[data-restart]').addEventListener('click', () =>
     go('welcome', { mdIndex: 0, ptIndex: 0, md: {}, pt: {} }))
 }
@@ -272,6 +324,8 @@ function render() {
   else if (state.step === 'maxdiff') viewMaxDiff()
   else if (state.step === 'portrait') viewPortrait()
   else if (state.step === 'results') viewResults()
+  // Enable gentle scene-by-scene scroll-snap only on the results story.
+  document.body.dataset.view = state.step === 'results' ? 'story' : 'flow'
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
