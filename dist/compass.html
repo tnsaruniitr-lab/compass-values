@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Compass — discover what you really value</title>
+  <meta name="description" content="A research-grounded way to discover your real, operative values — based on the Schwartz circumplex of basic human values." />
+  <meta name="theme-color" content="#0d0b1c" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Compass" />
+  <style>
+/* ============================================================================
+   Compass — values discovery. Deep-twilight, glassmorphic, calm-premium UI.
+   ========================================================================== */
+:root {
+  --bg-0: #07060f;
+  --bg-1: #0d0b1c;
+  --bg-2: #140f29;
+  --text: #eef0ff;
+  --muted: #a6abd4;
+  --faint: #757aa6;
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-2: rgba(255, 255, 255, 0.07);
+
+  --st: #34d399; /* self-transcendence */
+  --op: #38bdf8; /* openness */
+  --se: #fb7185; /* self-enhancement */
+  --co: #818cf8; /* conservation */
+
+  --accent: #a78bfa;
+  --accent-2: #5eead4;
+  --good: #34d399;
+  --warn: #fbbf24;
+
+  --r-lg: 26px;
+  --r-md: 18px;
+  --r-sm: 12px;
+  --shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8);
+  --focus: #a78bfa;
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+html { background: var(--bg-0); } /* solid base so scroll/extended areas never flash white */
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  background: radial-gradient(140% 120% at 50% -10%, var(--bg-2) 0%, var(--bg-1) 42%, var(--bg-0) 100%) fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  line-height: 1.5;
+}
+
+/* ----------------------------------------------------------- aurora backdrop */
+.aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.blob {
+  position: absolute; width: 48vmax; height: 48vmax; border-radius: 50%;
+  filter: blur(80px); opacity: 0.42; mix-blend-mode: screen;
+  animation: drift 26s ease-in-out infinite;
+}
+.b1 { background: radial-gradient(circle, #2dd4bf, transparent 60%); top: -14%; left: -8%; }
+.b2 { background: radial-gradient(circle, #8b5cf6, transparent 60%); top: 8%; right: -14%; animation-delay: -6s; }
+.b3 { background: radial-gradient(circle, #3b82f6, transparent 60%); bottom: -18%; left: 14%; animation-delay: -12s; }
+.b4 { background: radial-gradient(circle, #fb7185, transparent 62%); bottom: -10%; right: 6%; opacity: 0.30; animation-delay: -18s; }
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(6%, 8%) scale(1.12); }
+  66% { transform: translate(-5%, -6%) scale(0.95); }
+}
+.grain {
+  position: absolute; inset: 0; opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@media (prefers-reduced-motion: reduce) {
+  .blob { animation: none; }
+  .view { animation: none; }
+  .circ-blob, .circ-vector, .circ-node { animation: none !important; }
+  .circ-vector { stroke-dashoffset: 0; }
+  .circ-blob, .circ-node { opacity: 1; transform: none; }
+  .progress > i { transition: none; }
+  .btn:hover, .dotbtn:hover, .pick button:hover { transform: none; }
+}
+
+/* --------------------------------------------------------------- app & stage */
+.app { min-height: 100dvh; display: grid; place-items: center; padding: 28px 18px 56px; }
+.view { width: 100%; max-width: 760px; animation: rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.view.wide { max-width: 1040px; }
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+.card {
+  background: linear-gradient(180deg, var(--glass-2), var(--glass));
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  padding: 40px;
+}
+@media (max-width: 560px) { .card { padding: 26px 20px; } }
+
+/* ---------------------------------------------------------------- typography */
+.eyebrow {
+  font-size: 11.5px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 600; margin-bottom: 18px; display: flex; gap: 10px; align-items: center;
+}
+.eyebrow::before { content: ""; width: 26px; height: 1px; background: linear-gradient(90deg, var(--accent-2), transparent); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.01em; line-height: 1.08; }
+.display { font-size: clamp(34px, 6vw, 58px); text-wrap: balance; line-height: 1.12; }
+.display em { font-style: italic; background: linear-gradient(120deg, #5eead4, #a78bfa 55%, #fb7185); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { color: var(--muted); font-size: clamp(15px, 2.1vw, 18px); margin-top: 20px; max-width: 56ch; }
+.fine { color: var(--faint); font-size: 13px; line-height: 1.6; }
+
+/* ------------------------------------------------------------------- buttons */
+.btn {
+  appearance: none; border: 0; cursor: pointer; font-family: inherit; font-weight: 600;
+  font-size: 16px; color: #0a0712; padding: 15px 30px; border-radius: 999px;
+  background: linear-gradient(120deg, #7ef0d4, #a78bfa 60%, #c4b5fd);
+  box-shadow: 0 12px 34px -10px rgba(167, 139, 250, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.18s ease, box-shadow 0.25s ease, filter 0.25s ease, opacity 0.35s ease, background 0.35s ease;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 18px 44px -10px rgba(167, 139, 250, 0.85); filter: brightness(1.05); }
+.btn:active { transform: translateY(0); }
+.btn:disabled, .btn[disabled] {
+  cursor: not-allowed; box-shadow: none; transform: none; filter: none;
+  background: rgba(255, 255, 255, 0.05); color: var(--faint);
+}
+.btn:disabled:hover, .btn[disabled]:hover { transform: none; box-shadow: none; filter: none; }
+.btn.ghost {
+  background: var(--glass-2); color: var(--text); box-shadow: none; border: 1px solid var(--line-strong);
+  font-weight: 500;
+}
+.btn.ghost:hover { background: var(--glass); border-color: var(--accent); }
+.btn-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 30px; }
+
+/* ------------------------------------------------------------------ progress */
+.topbar { display: flex; align-items: center; gap: 16px; margin-bottom: 26px; }
+.progress { flex: 1; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.progress > i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #5eead4, #a78bfa); transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); box-shadow: 0 0 16px rgba(167, 139, 250, 0.6); }
+.counter { font-size: 13px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.backlink { background: none; border: 0; color: var(--faint); cursor: pointer; font-size: 13px; font-family: inherit; padding: 6px; }
+.backlink:hover { color: var(--text); }
+
+/* --------------------------------------------------------------- prompt head */
+.qhead { margin-bottom: 26px; }
+.qhead .k { font-size: 11.5px; color: var(--accent-2); letter-spacing: 0.13em; text-transform: uppercase; font-weight: 600; }
+.qhead .subq { font-size: 18px; color: var(--muted); font-family: var(--font-body); font-weight: 500; margin-top: 10px; line-height: 1.4; }
+.qhead h2 { font-size: clamp(22px, 3.4vw, 30px); margin-top: 10px; }
+
+/* --------------------------------------------------------------- maxdiff view */
+.md-list { display: flex; flex-direction: column; gap: 12px; }
+.md-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px;
+  padding: 16px 18px; border-radius: var(--r-md);
+  background: var(--glass); border: 1px solid var(--line);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.md-row .label { font-size: 16px; font-weight: 500; line-height: 1.35; text-wrap: pretty; }
+.md-row .label .txt { display: inline-block; vertical-align: top; }
+.md-row .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 10px; vertical-align: middle; box-shadow: 0 0 10px currentColor; }
+.md-row.most { border-color: rgba(94, 234, 212, 0.6); background: rgba(94, 234, 212, 0.08); }
+.md-row.least { border-color: rgba(148, 163, 184, 0.35); opacity: 0.62; }
+.pick { display: flex; gap: 8px; }
+.pick button {
+  font-family: inherit; cursor: pointer; font-size: 12.5px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 8px 14px; border-radius: 99px; border: 1px solid var(--line-strong);
+  background: transparent; color: var(--muted); transition: all 0.18s ease;
+}
+.pick button.most.on { background: linear-gradient(120deg, #5eead4, #2dd4bf); color: #06241d; border-color: transparent; box-shadow: 0 8px 20px -8px rgba(45, 212, 191, 0.8); }
+.pick button.least.on { background: rgba(148, 163, 184, 0.22); color: #e2e8f0; border-color: var(--line-strong); }
+.pick button:hover { color: var(--text); border-color: var(--accent); }
+
+/* --------------------------------------------------------------- portrait view */
+.quote {
+  font-family: var(--font-display); font-size: clamp(22px, 3.6vw, 30px); line-height: 1.38;
+  padding: 28px 30px; padding-left: 34px; max-width: 30ch;
+  border-radius: var(--r-md); border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--glass-2), transparent);
+  position: relative;
+}
+.quote::before { content: "\201C"; position: absolute; top: -10px; left: -2px; font-size: 70px; color: var(--accent); opacity: 0.4; font-family: var(--font-display); }
+.scale { margin-top: 26px; }
+.scale-ends { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--faint); margin-bottom: 10px; }
+.dots { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.dotbtn {
+  font-family: inherit; cursor: pointer; aspect-ratio: 1 / 1; border-radius: 16px;
+  border: 1px solid var(--line-strong); background: var(--glass); color: var(--muted);
+  font-size: 18px; font-weight: 600; display: grid; place-items: center;
+  transition: transform 0.16s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.dotbtn:hover { transform: translateY(-3px); border-color: var(--accent); color: var(--text); }
+.dotbtn.on { color: #07120f; border-color: transparent; transform: translateY(-3px); box-shadow: 0 12px 28px -10px rgba(94, 234, 212, 0.7); background: linear-gradient(140deg, #7ef0d4, #6ee7ff); }
+@media (max-width: 480px) { .dots { gap: 7px; } .dotbtn { font-size: 15px; border-radius: 13px; } }
+
+/* --------------------------------------------------------------- results view */
+.results-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 30px; align-items: start; }
+@media (max-width: 880px) { .results-grid { grid-template-columns: 1fr; } }
+.hero-orient { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-2); font-weight: 600; }
+.hero-title { font-size: clamp(28px, 4.6vw, 42px); margin: 8px 0 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 99px;
+  font-size: 12px; font-weight: 600; border: 1px solid var(--line-strong); background: var(--glass);
+}
+.chip .d { width: 8px; height: 8px; border-radius: 50%; }
+.conf-high { color: #6ee7b7; } .conf-high .d { background: #34d399; box-shadow: 0 0 8px #34d399; }
+.conf-medium { color: #fcd34d; } .conf-medium .d { background: #fbbf24; }
+.conf-low, .conf-single { color: var(--faint); } .conf-low .d, .conf-single .d { background: #64748b; }
+
+.vlist { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.vrow { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+.vrow:last-child { border-bottom: 0; }
+.vrank { font-family: var(--font-display); font-size: 20px; color: var(--faint); width: 26px; }
+.vname { font-weight: 600; }
+.vname small { display: block; color: var(--muted); font-weight: 400; font-size: 13px; margin-top: 2px; }
+.meter { height: 5px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin-top: 8px; }
+.meter > i { display: block; height: 100%; border-radius: 99px; }
+
+.panel { margin-top: 22px; padding: 20px 22px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--glass); }
+.panel h3 { font-size: 17px; margin-bottom: 12px; }
+.tension { display: flex; align-items: center; gap: 10px; font-size: 14.5px; padding: 8px 0; color: var(--text); }
+.tension .vs { color: var(--warn); font-weight: 700; font-family: var(--font-display); }
+.axisbar { margin: 14px 0; }
+.axisbar .lbls { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+.axistrack { position: relative; height: 8px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); }
+.axistrack .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--line-strong); }
+.axistrack .knob { position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 14px currentColor, inset 0 1px 0 rgba(255,255,255,0.6); }
+
+.disclaimer { margin-top: 26px; border-left: 2px solid var(--accent); padding: 4px 0 4px 16px; }
+
+/* --------------------------------------------------------------- circumplex */
+.circ-wrap { position: relative; display: grid; place-items: center; }
+.circ-wrap svg { width: 100%; height: auto; max-width: 520px; display: block; margin: 0 auto; }
+.circ-blob { transform-origin: center; animation: bloom 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes bloom { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.circ-vector { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 0.9s cubic-bezier(0.65, 0, 0.35, 1) 0.55s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+.circ-node { animation: pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes pop { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes pick-pop { 0% { transform: scale(1); } 45% { transform: scale(1.06); } 100% { transform: scale(1); } }
+
+.foot { text-align: center; margin-top: 30px; }
+.foot .fine a { color: var(--accent-2); }
+
+/* ===================================================== mobile adaptiveness == */
+/* Honour notches / home indicator on phones. */
+.app {
+  padding-top: max(28px, env(safe-area-inset-top));
+  padding-right: max(18px, env(safe-area-inset-right));
+  padding-bottom: max(56px, env(safe-area-inset-bottom));
+  padding-left: max(18px, env(safe-area-inset-left));
+}
+/* Snappy, flicker-free taps on touch devices. */
+button, .btn, .dotbtn, .backlink, .md-row, .pick button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+@media (max-width: 720px) {
+  .app { padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+  .card { padding: 24px 18px; border-radius: 22px; }
+  .display { font-size: clamp(30px, 9vw, 46px); }
+  .lede { font-size: 15px; margin-top: 16px; }
+  .qhead h2 { font-size: clamp(20px, 5.6vw, 26px); }
+  .results-grid { gap: 22px; }
+  .hero-title { font-size: clamp(26px, 8vw, 36px); }
+
+  /* MaxDiff: stack the label over full-width Most / Least so taps are big. */
+  .md-row { grid-template-columns: 1fr; gap: 12px; padding: 14px 16px; }
+  .md-row .label { font-size: 15px; }
+  .pick { width: 100%; }
+  .pick button { flex: 1; padding: 13px; font-size: 14px; }
+
+  /* Value rows: let the confidence chip drop beneath the name. */
+  .vrow { grid-template-columns: auto 1fr; align-items: start; row-gap: 8px; }
+  .vrow .vrank { grid-row: 1 / span 2; }
+  .vrow .chip { grid-column: 2; justify-self: start; }
+}
+
+@media (max-width: 430px) {
+  .display { font-size: 30px; line-height: 1.12; }
+  .quote { font-size: 20px; padding: 22px 20px; }
+  .quote::before { font-size: 56px; top: -6px; }
+  .dots { gap: 6px; }
+  .dotbtn { font-size: 15px; border-radius: 12px; }
+  .btn { width: 100%; justify-content: center; text-align: center; }
+  .btn-row { gap: 10px; }
+  .topbar { gap: 12px; }
+}
+
+/* On real touch devices, drop hover-lift transforms (they "stick" after tap). */
+@media (hover: none) {
+  .btn:hover, .dotbtn:hover, .pick button:hover, .md-row:hover { transform: none; }
+}
+
+/* ===================================================== theme switcher ======= */
+.theme-switch {
+  position: fixed; z-index: 50; display: flex; align-items: center; gap: 8px;
+  top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right));
+  padding: 7px 12px 7px 13px; border-radius: 999px;
+  background: var(--glass-2); border: 1px solid var(--line-strong);
+  backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 10px 26px -14px rgba(0, 0, 0, 0.55);
+}
+.theme-switch .theme-ic { font-size: 13px; color: var(--accent-2); }
+.theme-switch select {
+  appearance: none; -webkit-appearance: none; border: 0; outline: none; cursor: pointer;
+  background: transparent; color: var(--text); font-family: inherit; font-size: 13px; font-weight: 600;
+  padding-right: 16px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23998' fill='none' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right center;
+}
+.theme-switch select option { color: #1a1530; background: #fff; }
+
+/* =================================================== Bloom (soft, warm) ===== */
+[data-theme="bloom"] {
+  --bg-0: #fff4ef; --bg-1: #ffe9f1; --bg-2: #f1ecff;
+  --text: #41354a; --muted: #6a5a74; --faint: #73667e;
+  --line: rgba(90, 55, 95, 0.12); --line-strong: rgba(90, 55, 95, 0.20);
+  --glass: rgba(255, 255, 255, 0.42); --glass-2: rgba(255, 255, 255, 0.66);
+  --accent: #c084a8; --accent-2: #c92a66;
+  --control-border: rgba(150, 90, 130, 0.32);
+  --focus: #c92a66;
+  --st: #0f9d76; --op: #1f7fb8; --se: #d63a5c; --co: #5b50c4;
+  --shadow: 0 1px 2px rgba(120, 70, 110, 0.10),
+            0 12px 28px -8px rgba(190, 120, 160, 0.28),
+            0 40px 80px -40px rgba(160, 90, 140, 0.22);
+}
+[data-theme="bloom"] html { background: #fff4ef; }
+[data-theme="bloom"] body {
+  color: var(--text);
+  background: radial-gradient(135% 115% at 50% -10%, #fff7f1 0%, #ffe9f2 46%, #f1ebff 100%) fixed;
+}
+/* soft warm ambient clouds (no screen-blend — gentle on light).
+   An uneven, rose-led pool (not four equal pastels) reads as a living glow. */
+[data-theme="bloom"] .blob { mix-blend-mode: normal; filter: blur(78px); animation-duration: 34s; }
+[data-theme="bloom"] .b1 { background: radial-gradient(circle, #ffcdb4, transparent 60%); opacity: 0.60; }
+[data-theme="bloom"] .b2 { background: radial-gradient(circle, #ffb6d4, transparent 60%); opacity: 0.70; }
+[data-theme="bloom"] .b3 { background: radial-gradient(circle, #e0c9ff, transparent 60%); opacity: 0.50; }
+[data-theme="bloom"] .b4 { background: radial-gradient(circle, #ffd0c2, transparent 62%); opacity: 0.45; }
+[data-theme="bloom"] .grain { opacity: 0.025; mix-blend-mode: multiply; }
+
+[data-theme="bloom"] .card {
+  background: linear-gradient(180deg, rgba(255, 250, 252, 0.82), rgba(255, 255, 255, 0.52));
+  border-color: rgba(150, 90, 130, 0.18);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+[data-theme="bloom"] .display em {
+  background: linear-gradient(120deg, #d6457f, #9333ea 50%, #c77a5e);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+[data-theme="bloom"] .btn {
+  color: #4a2640;
+  background: linear-gradient(120deg, #ffb0c8, #e0a9e0 55%, #c9b6ff);
+  box-shadow: 0 14px 32px -12px rgba(224, 106, 160, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+[data-theme="bloom"] .btn:hover {
+  box-shadow: 0 20px 48px -12px rgba(214, 120, 170, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  filter: saturate(1.12) brightness(1.02);
+}
+[data-theme="bloom"] .progress > i {
+  background: linear-gradient(90deg, #ffb0c8, #c9b6ff); box-shadow: none;
+}
+
+/* light-surface fixes: tracks/meters need a visible tint on a pale background */
+[data-theme="bloom"] .progress,
+[data-theme="bloom"] .meter,
+[data-theme="bloom"] .axistrack { background: rgba(90, 55, 95, 0.10); }
+[data-theme="bloom"] .conf-high { color: #0a7d5d; }
+[data-theme="bloom"] .conf-medium { color: #9a6510; }
+[data-theme="bloom"] .conf-low, [data-theme="bloom"] .conf-single { color: #756c86; }
+[data-theme="bloom"] .md-row.most { border-color: rgba(214, 58, 92, 0.45); background: rgba(224, 114, 155, 0.10); }
+[data-theme="bloom"] .quote::before { color: #e06aa0; opacity: 0.5; }
+
+/* ============================================== Bloom — flagship polish ====== */
+/* On a pale ground, surfaces and controls must be distinguished by an opaque
+   fill + a tinted (>=3:1) edge + a soft contact shadow — never a faint hairline
+   alone. This block builds a coherent warm elevation + affordance language so
+   every panel and control reads as a held, tappable object. */
+
+/* Nested surfaces sit ABOVE the off-white card body (background → card → panel). */
+[data-theme="bloom"] .md-row,
+[data-theme="bloom"] .panel,
+[data-theme="bloom"] .quote {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(150, 90, 130, 0.16);
+  box-shadow: 0 1px 2px rgba(120, 70, 110, 0.06), 0 6px 16px -8px rgba(150, 90, 130, 0.18);
+}
+
+/* Resting controls: real white chips with a visible warm edge + micro contact shadow. */
+[data-theme="bloom"] .pick button {
+  background: #fff; border: 1px solid var(--control-border); color: #5a4a64;
+  box-shadow: 0 1px 2px rgba(120, 70, 110, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+[data-theme="bloom"] .dotbtn {
+  background: #fff; border: 1px solid var(--control-border); color: #5a4a64;
+  box-shadow: 0 1px 2px rgba(120, 70, 110, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+[data-theme="bloom"] .btn.ghost {
+  background: #fff; border: 1px solid var(--control-border); color: var(--text);
+  box-shadow: 0 2px 6px -2px rgba(150, 90, 130, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+[data-theme="bloom"] .dotbtn:hover,
+[data-theme="bloom"] .pick button:hover {
+  border-color: var(--accent-2); background: rgba(255, 237, 245, 0.95); color: #4a2640;
+}
+[data-theme="bloom"] .btn.ghost:hover {
+  background: #fff; border-color: var(--accent-2); box-shadow: 0 6px 16px -8px rgba(200, 120, 170, 0.45);
+}
+
+/* Selected states — the one decisive, on-brand moment. Warm rose / lavender, never teal. */
+[data-theme="bloom"] .pick button.most.on {
+  background: linear-gradient(120deg, #e0729b, #d63a5c); color: #fff; border-color: transparent;
+  box-shadow: 0 8px 20px -8px rgba(214, 58, 92, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+[data-theme="bloom"] .pick button.least.on {
+  background: rgba(90, 55, 95, 0.12); border-color: rgba(90, 55, 95, 0.30); color: #5a4a64;
+  box-shadow: inset 0 1px 2px rgba(90, 55, 95, 0.12);
+}
+[data-theme="bloom"] .dotbtn.on {
+  background: linear-gradient(140deg, #ffb0c8, #c89bff); color: #4a2640; border-color: transparent;
+  box-shadow: 0 12px 26px -10px rgba(200, 120, 170, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* Disabled CTA: a flat, inert neutral — not a dimmed brand fill that still looks tappable. */
+[data-theme="bloom"] .btn:disabled,
+[data-theme="bloom"] .btn[disabled] {
+  background: rgba(90, 55, 95, 0.07); color: #9a8ca4; border: 1px solid rgba(90, 55, 95, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* ===================================================== focus & motion ======= */
+/* A single on-brand keyboard focus ring (the select's outline is otherwise killed). */
+.btn:focus-visible,
+.btn.ghost:focus-visible,
+.pick button:focus-visible,
+.dotbtn:focus-visible,
+.backlink:focus-visible,
+.theme-switch select:focus-visible,
+.foot .fine a:focus-visible {
+  outline: 3px solid var(--focus); outline-offset: 3px;
+}
+
+/* Tap-confirm pop on selection (gated by reduced-motion below). */
+.dotbtn.on, .pick button.most.on { animation: pick-pop 0.26s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Cross-fade colours during a theme switch; suppress the entrance keyframe so the
+   two motions don't collide. Scoped to .theme-animating so resting hover stays snappy. */
+html { transition: background-color 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
+html.theme-animating body,
+html.theme-animating .card,
+html.theme-animating .md-row,
+html.theme-animating .dotbtn,
+html.theme-animating .pick button,
+html.theme-animating .quote,
+html.theme-animating .panel,
+html.theme-animating .chip,
+html.theme-animating .btn,
+html.theme-animating .theme-switch {
+  transition: background-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+html.theme-animating .view { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dotbtn.on, .pick button.most.on { animation: none; }
+  html, html.theme-animating body, html.theme-animating .card { transition: none; }
+}
+
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <span class="blob b4"></span>
+    <div class="grain"></div>
+  </div>
+
+  <div class="theme-switch">
+    <span class="theme-ic" aria-hidden="true">◐</span>
+    <select id="themeSelect" aria-label="Choose a theme">
+      <option value="dark">Twilight</option>
+      <option value="bloom">Bloom</option>
+    </select>
+  </div>
+
+  <main id="app" class="app"></main>
+
+  <noscript>
+    <div class="stage"><div class="card">This experience needs JavaScript enabled.</div></div>
+  </noscript>
+
+  <script type="module">
+/* engine */
+
+const __mod_values = (() => {
+// @ts-check
+/**
+ * The Schwartz Theory of Basic Human Values — model definitions.
+ *
+ * This encodes the 10 basic values, their canonical CIRCULAR order, the two
+ * bipolar higher-order axes, the opposing pairs (used for tension detection),
+ * and an illustrative angular position for each value on the circumplex.
+ *
+ * NOTE ON SCIENCE: the *theory* (value names, structure, oppositions) is from
+ * the published literature and is free to model. The angular coordinates here
+ * are an internally-consistent illustrative layout (top = Self-Transcendence,
+ * bottom = Self-Enhancement, left = Openness, right = Conservation), NOT MDS
+ * coordinates from a specific dataset. See values-app/RESEARCH_AND_PLAN.md.
+ *
+ * @typedef {'self_direction'|'stimulation'|'hedonism'|'achievement'|'power'|'security'|'conformity'|'tradition'|'benevolence'|'universalism'} ValueId
+ * @typedef {'openness'|'self_enhancement'|'conservation'|'self_transcendence'} HigherId
+ *
+ * @typedef {Object} ValueDef
+ * @property {ValueId} id
+ * @property {string} name
+ * @property {number} order   Canonical circular order 0..9
+ * @property {number} angle   Degrees on the circumplex (0 = East, CCW positive)
+ * @property {string} short   One-line trade-off statement (used in MaxDiff & nodes)
+ * @property {string} blurb   Short description for results
+ * @property {string} color   Accent colour
+ * @property {HigherId[]} higher  Higher-order dimension membership
+ */
+
+/** Canonical circular order. Index i opposes index i+5. */
+const VALUE_IDS = /** @type {ValueId[]} */ ([
+  'self_direction',
+  'stimulation',
+  'hedonism',
+  'achievement',
+  'power',
+  'security',
+  'conformity',
+  'tradition',
+  'benevolence',
+  'universalism',
+])
+
+/** angle(order) = (108 - (9-order)*36) mod 360 → ST up, SE down, Openness left, Conservation right. */
+const angleFor = (order) => ((108 - (9 - order) * 36) % 360 + 360) % 360
+
+/** @type {ValueDef[]} */
+const VALUES = [
+  {
+    id: 'self_direction', name: 'Self-Direction', order: 0, angle: angleFor(0),
+    short: 'Thinking for myself & choosing my own path',
+    blurb: 'Independent thought and action — creating, exploring, and deciding for yourself.',
+    color: '#5eead4', higher: ['openness'],
+  },
+  {
+    id: 'stimulation', name: 'Stimulation', order: 1, angle: angleFor(1),
+    short: 'Seeking excitement, novelty & challenge',
+    blurb: 'Novelty, excitement, and challenge — a life with variety and stimulation.',
+    color: '#38bdf8', higher: ['openness'],
+  },
+  {
+    id: 'hedonism', name: 'Hedonism', order: 2, angle: angleFor(2),
+    short: "Enjoying life's pleasures",
+    blurb: 'Pleasure and enjoyment — savouring the good things and gratifying yourself.',
+    color: '#a78bfa', higher: ['openness', 'self_enhancement'],
+  },
+  {
+    id: 'achievement', name: 'Achievement', order: 3, angle: angleFor(3),
+    short: 'Succeeding & being recognised for it',
+    blurb: 'Personal success through demonstrating competence by social standards.',
+    color: '#fbbf24', higher: ['self_enhancement'],
+  },
+  {
+    id: 'power', name: 'Power', order: 4, angle: angleFor(4),
+    short: 'Influence, status & being in control',
+    blurb: 'Social status, prestige, and control or dominance over people and resources.',
+    color: '#fb7185', higher: ['self_enhancement'],
+  },
+  {
+    id: 'security', name: 'Security', order: 5, angle: angleFor(5),
+    short: 'Safety, stability & order',
+    blurb: 'Safety, harmony, and stability — for yourself, your relationships, and society.',
+    color: '#60a5fa', higher: ['conservation'],
+  },
+  {
+    id: 'conformity', name: 'Conformity', order: 6, angle: angleFor(6),
+    short: 'Fitting in & following the rules',
+    blurb: 'Restraint of actions likely to upset others or violate social expectations.',
+    color: '#818cf8', higher: ['conservation'],
+  },
+  {
+    id: 'tradition', name: 'Tradition', order: 7, angle: angleFor(7),
+    short: 'Honouring custom & tradition',
+    blurb: 'Respect for and commitment to the customs, ideas, and culture you come from.',
+    color: '#c084fc', higher: ['conservation'],
+  },
+  {
+    id: 'benevolence', name: 'Benevolence', order: 8, angle: angleFor(8),
+    short: 'Caring for the people close to me',
+    blurb: 'Preserving and enhancing the welfare of the people you are close to.',
+    color: '#34d399', higher: ['self_transcendence'],
+  },
+  {
+    id: 'universalism', name: 'Universalism', order: 9, angle: angleFor(9),
+    short: 'Fairness & the wellbeing of all people & nature',
+    blurb: 'Understanding, tolerance, and protection for all people and for nature.',
+    color: '#4ade80', higher: ['self_transcendence'],
+  },
+]
+
+/** @type {Record<ValueId, ValueDef>} */
+const VALUE_BY_ID = Object.fromEntries(VALUES.map((v) => [v.id, v]))
+
+/** @param {ValueId} id */
+const valueById = (id) => VALUE_BY_ID[id]
+
+/** Higher-order dimension membership (Hedonism bridges openness & self-enhancement). */
+const HIGHER_ORDER = /** @type {Record<HigherId, ValueId[]>} */ ({
+  openness: ['self_direction', 'stimulation', 'hedonism'],
+  self_enhancement: ['achievement', 'power', 'hedonism'],
+  conservation: ['security', 'conformity', 'tradition'],
+  self_transcendence: ['benevolence', 'universalism'],
+})
+
+const HIGHER_ORDER_META = /** @type {Record<HigherId, {name:string, apex:number, color:string}>} */ ({
+  self_transcendence: { name: 'Self-Transcendence', apex: 90, color: '#34d399' },
+  openness: { name: 'Openness to Change', apex: 180, color: '#38bdf8' },
+  self_enhancement: { name: 'Self-Enhancement', apex: 270, color: '#fb7185' },
+  conservation: { name: 'Conservation', apex: 0, color: '#818cf8' },
+})
+
+/** Deeper higher-order colours for light themes (legible on pale backgrounds). */
+const HIGHER_ORDER_DEEP = /** @type {Record<HigherId, string>} */ ({
+  self_transcendence: '#0a6e52',
+  openness: '#1f7fb8',
+  self_enhancement: '#cc2f52',
+  conservation: '#5b50c4',
+})
+
+/** The two bipolar value axes. */
+const AXES = [
+  { id: 'open_cons', posName: 'Openness to Change', negName: 'Conservation', pos: 'openness', neg: 'conservation' },
+  { id: 'trans_enh', posName: 'Self-Transcendence', negName: 'Self-Enhancement', pos: 'self_transcendence', neg: 'self_enhancement' },
+]
+
+/** Theoretically opposing value pairs (order i vs i+5). Used to surface tensions. */
+const OPPOSING_PAIRS = /** @type {[ValueId, ValueId][]} */ ([
+  ['self_direction', 'security'],
+  ['stimulation', 'conformity'],
+  ['hedonism', 'tradition'],
+  ['achievement', 'benevolence'],
+  ['power', 'universalism'],
+])
+
+return { VALUE_IDS, VALUES, VALUE_BY_ID, valueById, HIGHER_ORDER, HIGHER_ORDER_META, HIGHER_ORDER_DEEP, AXES, OPPOSING_PAIRS };
+})();
+
+const __mod_portraitItems = (() => {
+// @ts-check
+/**
+ * Portrait-style value items (an ORIGINAL, prototype instrument).
+ *
+ * Format follows the Portrait Values Questionnaire *approach* — a short
+ * third-person description of a person's goals, rated "How much like you is
+ * this person?" on a 1–6 scale — because indirect portraits are more concrete
+ * for laypeople and reduce social-desirability bias vs. rating abstract labels.
+ *
+ * IMPORTANT: these wordings are original prototype items written for this app.
+ * They are NOT the copyrighted PVQ / PVQ-RR items, and they are NOT yet
+ * psychometrically validated. For any real claim, license and use a validated
+ * instrument. See values-app/RESEARCH_AND_PLAN.md (§Caveats).
+ *
+ * @typedef {import('./values.js').ValueId} ValueId
+ * @typedef {Object} PortraitItem
+ * @property {string} id
+ * @property {ValueId} valueId
+ * @property {string} text
+ */
+
+/** 1–6 response anchors. */
+const PORTRAIT_SCALE = [
+  { value: 1, label: 'Not like me at all' },
+  { value: 2, label: 'Not like me' },
+  { value: 3, label: 'A little like me' },
+  { value: 4, label: 'Somewhat like me' },
+  { value: 5, label: 'Like me' },
+  { value: 6, label: 'Very much like me' },
+]
+
+/** @type {PortraitItem[]} */
+const PORTRAIT_ITEMS = [
+  // Self-Direction
+  { id: 'sd1', valueId: 'self_direction', text: 'Coming up with their own ideas and doing things their own way matters a lot to this person.' },
+  { id: 'sd2', valueId: 'self_direction', text: 'This person likes to figure things out for themselves rather than be told what to do.' },
+  // Stimulation
+  { id: 'st1', valueId: 'stimulation', text: 'This person looks for excitement and new experiences, even when they are a little risky.' },
+  { id: 'st2', valueId: 'stimulation', text: 'A life full of variety, surprises, and adventure really appeals to this person.' },
+  // Hedonism
+  { id: 'he1', valueId: 'hedonism', text: "Enjoying life's pleasures and treating themselves is important to this person." },
+  { id: 'he2', valueId: 'hedonism', text: 'This person makes time for fun and for things that simply feel good.' },
+  // Achievement
+  { id: 'ac1', valueId: 'achievement', text: 'This person wants to be successful and to have others recognise their accomplishments.' },
+  { id: 'ac2', valueId: 'achievement', text: 'Doing things well and getting ahead matters a great deal to this person.' },
+  // Power
+  { id: 'po1', valueId: 'power', text: 'Being in charge and having real influence over others is important to this person.' },
+  { id: 'po2', valueId: 'power', text: 'This person likes to be seen as someone with status and the means to get things done.' },
+  // Security
+  { id: 'se1', valueId: 'security', text: 'This person wants their life, and the people they love, to be safe and secure.' },
+  { id: 'se2', valueId: 'security', text: 'A stable, orderly, and predictable life feels important to this person.' },
+  // Conformity
+  { id: 'co1', valueId: 'conformity', text: 'This person is careful to follow the rules and not do things others would frown upon.' },
+  { id: 'co2', valueId: 'conformity', text: 'Behaving properly and avoiding criticism from others matters to this person.' },
+  // Tradition
+  { id: 'tr1', valueId: 'tradition', text: 'Honouring the customs and traditions they were raised with matters to this person.' },
+  { id: 'tr2', valueId: 'tradition', text: 'This person values keeping long-standing beliefs and practices alive.' },
+  // Benevolence
+  { id: 'be1', valueId: 'benevolence', text: 'Helping the people close to them, and being loyal and dependable, matters to this person.' },
+  { id: 'be2', valueId: 'benevolence', text: 'This person goes out of their way to care for their friends and family.' },
+  // Universalism
+  { id: 'un1', valueId: 'universalism', text: 'This person cares about fairness and the wellbeing of all people and the planet.' },
+  { id: 'un2', valueId: 'universalism', text: 'Protecting the environment and standing up for people treated unfairly matters to this person.' },
+]
+
+return { PORTRAIT_SCALE, PORTRAIT_ITEMS };
+})();
+
+const __mod_maxdiffBlocks = (() => {
+const { VALUE_IDS } = __mod_values;
+// @ts-check
+/**
+ * Forced-choice / best–worst (MaxDiff) blocks over the 10 values.
+ *
+ * Forcing values to compete under scarcity ("which matters MOST / LEAST")
+ * removes the "everything is important" non-discrimination of Likert ratings
+ * and equalises social desirability across options — the single best-evidenced
+ * lever for surfacing *operative* priorities (see RESEARCH_AND_PLAN.md §4).
+ *
+ * Block design: cyclic stride design. With n=10, size=4, stride=3 each value
+ * appears in exactly 4 blocks, spread apart (no two adjacent circle neighbours
+ * dominate a block). NOTE: naive best–worst counts are ipsative; a production
+ * build should upgrade to Thurstonian-IRT scoring (see the plan).
+ *
+ * @typedef {import('./values.js').ValueId} ValueId
+ * @typedef {Object} MaxDiffBlock
+ * @property {string} id
+ * @property {ValueId[]} valueIds
+ */
+
+
+/**
+ * @param {ValueId[]} ids
+ * @param {number} size
+ * @param {number} stride
+ * @returns {MaxDiffBlock[]}
+ */
+function generateBlocks(ids = VALUE_IDS, size = 4, stride = 3) {
+  const n = ids.length
+  /** @type {MaxDiffBlock[]} */
+  const blocks = []
+  for (let i = 0; i < n; i++) {
+    /** @type {ValueId[]} */
+    const set = []
+    for (let j = 0; j < size; j++) set.push(ids[(i + j * stride) % n])
+    blocks.push({ id: `b${i + 1}`, valueIds: set })
+  }
+  return blocks
+}
+
+/** @type {MaxDiffBlock[]} */
+const MAXDIFF_BLOCKS = generateBlocks()
+
+return { generateBlocks, MAXDIFF_BLOCKS };
+})();
+
+const __mod_scoring = (() => {
+const { VALUE_IDS, HIGHER_ORDER, OPPOSING_PAIRS, valueById, HIGHER_ORDER_META } = __mod_values;
+// @ts-check
+/**
+ * Scoring engine: turns raw responses into a triangulated values profile.
+ *
+ * Pipeline:
+ *   1. Portrait → centre on the person's mean (Schwartz ipsatization) to get
+ *      *relative* priorities, removing scale-use / acquiescence variance.
+ *   2. MaxDiff → best–worst counts per value, normalised by appearances.
+ *   3. Triangulate → standardise each signal within-person and average.
+ *   4. Project onto the circumplex; derive higher-order scores, cross-signal
+ *      convergence (a HEURISTIC confidence indicator — not calibrated), and
+ *      opposing-value tensions.
+ *
+ * @typedef {import('./values.js').ValueId} ValueId
+ * @typedef {import('./values.js').HigherId} HigherId
+ */
+
+
+/* ----------------------------- small math utils ---------------------------- */
+const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0)
+const sd = (a) => { const m = mean(a); return Math.sqrt(mean(a.map((x) => (x - m) ** 2))) }
+/** Standardise a {valueId: number} map to within-person z-scores. */
+function zmap(obj) {
+  const arr = VALUE_IDS.map((id) => obj[id] ?? 0)
+  const m = mean(arr); const s = sd(arr) || 1
+  /** @type {Record<string, number>} */ const out = {}
+  VALUE_IDS.forEach((id, i) => { out[id] = (arr[i] - m) / s })
+  return out
+}
+function pearson(a, b) {
+  const ma = mean(a); const mb = mean(b)
+  let num = 0; let da = 0; let db = 0
+  for (let i = 0; i < a.length; i++) { num += (a[i] - ma) * (b[i] - mb); da += (a[i] - ma) ** 2; db += (b[i] - mb) ** 2 }
+  const den = Math.sqrt(da * db)
+  return den ? num / den : 0
+}
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x))
+
+/* ------------------------------ portrait scoring --------------------------- */
+/**
+ * @param {{id:string, valueId:ValueId}[]} items
+ * @param {Record<string, number>} responses  itemId → 1..6
+ */
+function scorePortrait(items, responses) {
+  /** @type {Record<string, number[]>} */ const byValue = {}
+  const all = []
+  for (const it of items) {
+    const r = responses[it.id]
+    if (r == null) continue
+    ;(byValue[it.valueId] ||= []).push(r)
+    all.push(r)
+  }
+  const mrat = mean(all) // mean rating across all items = the centering anchor
+  /** @type {Record<string, number>} */ const raw = {}
+  /** @type {Record<string, number>} */ const centered = {}
+  for (const id of VALUE_IDS) {
+    const arr = byValue[id] || []
+    raw[id] = arr.length ? mean(arr) : mrat
+    centered[id] = raw[id] - mrat
+  }
+  return { raw, centered, mrat, answered: all.length }
+}
+
+/* ------------------------------ maxdiff scoring ---------------------------- */
+/**
+ * @param {{id:string, valueIds:ValueId[]}[]} blocks
+ * @param {{blockId:string, best:ValueId|null, worst:ValueId|null}[]} choices
+ */
+function scoreMaxDiff(blocks, choices) {
+  /** @type {Record<string, number>} */ const appear = {}
+  /** @type {Record<string, number>} */ const best = {}
+  /** @type {Record<string, number>} */ const worst = {}
+  for (const id of VALUE_IDS) { appear[id] = 0; best[id] = 0; worst[id] = 0 }
+  for (const b of blocks) for (const v of b.valueIds) appear[v]++
+  for (const c of choices) {
+    if (c.best) best[c.best]++
+    if (c.worst) worst[c.worst]++
+  }
+  /** @type {Record<string, number>} */ const bw = {}
+  for (const id of VALUE_IDS) bw[id] = appear[id] ? (best[id] - worst[id]) / appear[id] : 0
+  return { bw, appear, best, worst, answered: choices.length }
+}
+
+/* ------------------------------ profile builder ---------------------------- */
+/**
+ * @param {{portrait?: ReturnType<typeof scorePortrait>|null, maxdiff?: ReturnType<typeof scoreMaxDiff>|null}} signals
+ */
+function buildProfile({ portrait = null, maxdiff = null } = {}) {
+  const zSignals = []
+  if (portrait && portrait.answered) zSignals.push(zmap(portrait.centered))
+  if (maxdiff && maxdiff.answered) zSignals.push(zmap(maxdiff.bw))
+  if (!zSignals.length) throw new Error('buildProfile: no signals provided')
+
+  /** @type {Record<string, number>} */ const combined = {}
+  for (const id of VALUE_IDS) {
+    const vals = zSignals.map((s) => s[id]).filter(Number.isFinite)
+    combined[id] = vals.length ? mean(vals) : 0
+  }
+
+  // Ranking (most → least important to you)
+  const ranked = [...VALUE_IDS].sort((a, b) => combined[b] - combined[a])
+
+  // Circumplex projection: weighted vector sum of unit vectors at each angle.
+  let x = 0; let y = 0
+  for (const id of VALUE_IDS) {
+    const a = (valueById(id).angle * Math.PI) / 180
+    x += combined[id] * Math.cos(a)
+    y += combined[id] * Math.sin(a)
+  }
+  const magnitude = Math.hypot(x, y)
+  let angle = (Math.atan2(y, x) * 180) / Math.PI
+  if (angle < 0) angle += 360
+
+  // Higher-order dimension scores (mean of member values) + dominant
+  /** @type {Record<string, number>} */ const higher = {}
+  for (const dim of Object.keys(HIGHER_ORDER)) higher[dim] = mean(HIGHER_ORDER[dim].map((id) => combined[id]))
+  const dominantHigher = Object.keys(higher).sort((a, b) => higher[b] - higher[a])[0]
+
+  // Cross-signal convergence: Pearson r between the two signals across values.
+  // This is a heuristic, *uncalibrated* confidence indicator (see plan §Caveats).
+  let convergence = null
+  if (zSignals.length === 2) {
+    convergence = pearson(VALUE_IDS.map((id) => zSignals[0][id]), VALUE_IDS.map((id) => zSignals[1][id]))
+  }
+
+  // Per-value confidence from sign agreement + strength across signals.
+  /** @type {Record<string, 'high'|'medium'|'low'|'single'>} */ const valueConfidence = {}
+  for (const id of VALUE_IDS) {
+    if (zSignals.length < 2) { valueConfidence[id] = 'single'; continue }
+    const a = zSignals[0][id]; const b = zSignals[1][id]
+    const agree = Math.sign(a) === Math.sign(b)
+    if (agree && Math.abs(a) > 0.4 && Math.abs(b) > 0.4) valueConfidence[id] = 'high'
+    else if (agree) valueConfidence[id] = 'medium'
+    else valueConfidence[id] = 'low'
+  }
+
+  // Tensions: opposing values BOTH clearly above the person's average.
+  const tensions = []
+  for (const [a, b] of OPPOSING_PAIRS) {
+    if (combined[a] > 0.4 && combined[b] > 0.4) {
+      tensions.push({ a, b, strength: Math.min(combined[a], combined[b]) })
+    }
+  }
+  tensions.sort((p, q) => q.strength - p.strength)
+
+  return {
+    combined,
+    ranked,
+    top: ranked.slice(0, 3),
+    bottom: ranked.slice(-2),
+    circumplex: { x, y, angle, magnitude, quadrant: quadrantForAngle(angle) },
+    higher,
+    dominantHigher,
+    convergence,
+    valueConfidence,
+    tensions,
+    signalCount: zSignals.length,
+  }
+}
+
+/** Nearest higher-order apex for a circumplex angle. */
+function quadrantForAngle(angle) {
+  let bestDim = 'self_transcendence'; let bestDist = Infinity
+  for (const dim of Object.keys(HIGHER_ORDER_META)) {
+    const apex = HIGHER_ORDER_META[dim].apex
+    let diff = (((angle - apex) % 360) + 360) % 360
+    if (diff > 180) diff = 360 - diff // shortest angular distance, 0..180
+    if (diff < bestDist) { bestDist = diff; bestDim = dim }
+  }
+  return bestDim
+}
+
+/** Convenience: full pipeline from raw responses + content. */
+function analyze({ portraitItems, portraitResponses, maxdiffBlocks, maxdiffChoices }) {
+  const portrait = portraitItems && portraitResponses ? scorePortrait(portraitItems, portraitResponses) : null
+  const maxdiff = maxdiffBlocks && maxdiffChoices ? scoreMaxDiff(maxdiffBlocks, maxdiffChoices) : null
+  return { portrait, maxdiff, profile: buildProfile({ portrait, maxdiff }) }
+}
+
+const _internals = { mean, sd, zmap, pearson, clamp }
+
+return { scorePortrait, scoreMaxDiff, buildProfile, quadrantForAngle, analyze, _internals };
+})();
+
+const __engine = Object.assign({}, __mod_values, __mod_portraitItems, __mod_maxdiffBlocks, __mod_scoring);
+
+/* view */
+
+const __mod_circumplex = (() => {
+const { VALUES, VALUE_BY_ID, HIGHER_ORDER_META, HIGHER_ORDER_DEEP } = __engine;
+// @ts-check
+/** Renders the values circumplex as an animated SVG. Pure string output. */
+
+
+/** Per-theme drawing palette. */
+const PALETTES = {
+  dark: {
+    ring: 'rgba(255,255,255,0.08)', axis: 'rgba(255,255,255,0.07)', wedge: 0.06,
+    blob: [['0%', '#a78bfa', '0.55'], ['55%', '#5eead4', '0.30'], ['100%', '#38bdf8', '0.12']],
+    blobStroke: '#c4b5fd', blobStrokeOp: 0.65,
+    vec: ['#fef9c3', '#a78bfa'], vecTip: '#fef9c3',
+    center: '#eef0ff', mutedLabel: 'rgba(214,218,247,0.55)', deepHO: false,
+  },
+  bloom: {
+    ring: 'rgba(101,74,110,0.28)', axis: 'rgba(101,74,110,0.22)', wedge: 0.14,
+    // Warm rose core → orchid → peach rim (no cold teal terminator); higher alpha
+    // so the fill keeps its saturation on a near-white ground instead of greying out.
+    blob: [['0%', '#f0518f', '0.55'], ['50%', '#c47ad8', '0.42'], ['100%', '#ffb39c', '0.30']],
+    blobStroke: '#d65a9e', blobStrokeOp: 0.85,
+    // The key indicator must be the highest-contrast mark: a deep magenta→raspberry
+    // stroke reads as deliberate ink over the pale-pink blob.
+    vec: ['#7a2f9e', '#c2185b'], vecTip: '#7a1f6e',
+    center: '#5a3a52', mutedLabel: '#5f4b66', deepHO: true,
+  },
+}
+
+const SIZE = 460
+const C = SIZE / 2
+const R = 168 // base ring radius
+
+/** Polar → screen (90° = up; y inverted). */
+function pt(angleDeg, r) {
+  const a = (angleDeg * Math.PI) / 180
+  return [C + r * Math.cos(a), C - r * Math.sin(a)]
+}
+
+/** Closed Catmull-Rom spline through points → smooth blob path. */
+function smoothClosedPath(points) {
+  const n = points.length
+  let d = `M ${points[0][0].toFixed(1)} ${points[0][1].toFixed(1)} `
+  for (let i = 0; i < n; i++) {
+    const p0 = points[(i - 1 + n) % n]
+    const p1 = points[i]
+    const p2 = points[(i + 1) % n]
+    const p3 = points[(i + 2) % n]
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6
+    d += `C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)} `
+  }
+  return d + 'Z'
+}
+
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x))
+
+/**
+ * @param {ReturnType<typeof import('../engine/index.js').buildProfile>} profile
+ * @param {{theme?: 'dark'|'bloom'}} [opts]
+ */
+function renderCircumplex(profile, opts = {}) {
+  const P = PALETTES[opts.theme] || PALETTES.dark
+  const hoColor = (id) => (P.deepHO ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
+  const lo = -1.6; const hi = 1.6
+  const radiusFor = (c) => (0.16 + 0.82 * clamp((c - lo) / (hi - lo), 0, 1)) * R
+
+  // Blob points in canonical circle order
+  const blobPts = VALUES.map((v) => pt(v.angle, radiusFor(profile.combined[v.id])))
+  const blobPath = smoothClosedPath(blobPts)
+
+  // Quadrant tints (4 apex wedges)
+  const wedges = Object.entries(HIGHER_ORDER_META).map(([id, m]) => {
+    const a0 = m.apex - 45; const a1 = m.apex + 45
+    const [x0, y0] = pt(a0, R + 18); const [x1, y1] = pt(a1, R + 18)
+    return `<path d="M ${C} ${C} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${R + 18} ${R + 18} 0 0 0 ${x1.toFixed(1)} ${y1.toFixed(1)} Z" fill="${hoColor(id)}" opacity="${P.wedge}"/>`
+  }).join('')
+
+  // Guide rings
+  const rings = [0.4, 0.7, 1].map((t) =>
+    `<circle cx="${C}" cy="${C}" r="${(R * t).toFixed(1)}" fill="none" stroke="${P.ring}" stroke-width="1"/>`,
+  ).join('')
+
+  // Cross axes
+  const axes = [[90, 270], [0, 180]].map(([p, q]) => {
+    const [x0, y0] = pt(p, R); const [x1, y1] = pt(q, R)
+    return `<line x1="${x0.toFixed(1)}" y1="${y0.toFixed(1)}" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="${P.axis}" stroke-width="1"/>`
+  }).join('')
+
+  // Value nodes + labels, sized by rank emphasis
+  const maxAbs = Math.max(...VALUES.map((v) => Math.abs(profile.combined[v.id]))) || 1
+  const nodes = VALUES.map((v, i) => {
+    const score = profile.combined[v.id]
+    const [nx, ny] = pt(v.angle, radiusFor(score))
+    const emphasis = clamp((score + 0.2) / (maxAbs + 0.2), 0.12, 1)
+    const rad = 3 + emphasis * 6
+    // Most labels sit at the rim (well spaced, 36° apart). The two values that
+    // sit ON the horizontal apex line (0°/180°) are pulled inward so they never
+    // collide with the OPENNESS / CONSERVATION apex words at the far rim.
+    const onAxis = v.angle % 180 === 0
+    const labelR = onAxis ? R * 0.64 : R + 30
+    const [lx, ly] = pt(v.angle, labelR)
+    const anchor = onAxis ? 'middle' : lx < C - 12 ? 'end' : lx > C + 12 ? 'start' : 'middle'
+    const isTop = profile.top.includes(v.id)
+    const labelColor = isTop ? v.color : P.mutedLabel
+    const labelWeight = isTop ? 600 : 400
+    return `
+      <g class="circ-node" style="animation-delay:${(1.1 + i * 0.05).toFixed(2)}s">
+        <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="${rad.toFixed(1)}" fill="${v.color}" opacity="${(0.45 + emphasis * 0.55).toFixed(2)}"/>
+        <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="${(rad + 2.5).toFixed(1)}" fill="none" stroke="${v.color}" stroke-width="1" opacity="${(emphasis * 0.5).toFixed(2)}"/>
+        <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="middle"
+              font-size="12.5" font-weight="${labelWeight}" fill="${labelColor}" font-family="Inter, sans-serif">${v.name}</text>
+      </g>`
+  }).join('')
+
+  // Apex labels (higher-order). The viewBox is padded so these sit fully inside
+  // it and scale down cleanly on mobile (never clipped at the screen edge).
+  const SHORT = { self_transcendence: 'TRANSCENDENCE', openness: 'OPENNESS', self_enhancement: 'ENHANCEMENT', conservation: 'CONSERVATION' }
+  const apexLabels = Object.entries(HIGHER_ORDER_META).map(([id]) => {
+    const [x, y] = pt(HIGHER_ORDER_META[id].apex, R + 50)
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
+       font-size="11" letter-spacing="1.6" font-weight="700" fill="${hoColor(id)}" opacity="${P.deepHO ? '1' : '0.9'}"
+       font-family="Inter, sans-serif">${SHORT[id]}</text>`
+  }).join('')
+
+  // Dominant direction vector
+  const vmag = clamp(profile.circumplex.magnitude / 4, 0.18, 1) * R * 0.92
+  const [vx, vy] = pt(profile.circumplex.angle, vmag)
+
+  return `
+  <div class="circ-wrap">
+    <svg viewBox="-80 -12 620 484" role="img" aria-label="Your values circumplex">
+      <defs>
+        <radialGradient id="blobFill" cx="50%" cy="50%" r="60%">
+          <stop offset="${P.blob[0][0]}" stop-color="${P.blob[0][1]}" stop-opacity="${P.blob[0][2]}"/>
+          <stop offset="${P.blob[1][0]}" stop-color="${P.blob[1][1]}" stop-opacity="${P.blob[1][2]}"/>
+          <stop offset="${P.blob[2][0]}" stop-color="${P.blob[2][1]}" stop-opacity="${P.blob[2][2]}"/>
+        </radialGradient>
+        <linearGradient id="vecGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${P.vec[0]}"/>
+          <stop offset="100%" stop-color="${P.vec[1]}"/>
+        </linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="6" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      ${wedges}
+      ${rings}
+      ${axes}
+
+      <path class="circ-blob" d="${blobPath}" fill="url(#blobFill)" stroke="${P.blobStroke}" stroke-width="1.5" stroke-opacity="${P.blobStrokeOp}" filter="url(#glow)"/>
+
+      <g filter="url(#glow)">
+        <line class="circ-vector" x1="${C}" y1="${C}" x2="${vx.toFixed(1)}" y2="${vy.toFixed(1)}"
+              stroke="url(#vecGrad)" stroke-width="3" stroke-linecap="round" pathLength="1"/>
+        <circle cx="${vx.toFixed(1)}" cy="${vy.toFixed(1)}" r="5" fill="${P.vecTip}"/>
+      </g>
+
+      ${nodes}
+      ${apexLabels}
+      <circle cx="${C}" cy="${C}" r="3.5" fill="${P.center}"/>
+    </svg>
+  </div>`
+}
+
+return { renderCircumplex };
+})();
+
+(() => {
+const { PORTRAIT_ITEMS, PORTRAIT_SCALE, MAXDIFF_BLOCKS, VALUE_BY_ID, valueById, HIGHER_ORDER_META, HIGHER_ORDER_DEEP, HIGHER_ORDER, analyze } = __engine;
+const { renderCircumplex } = __mod_circumplex;
+// @ts-check
+
+
+
+const root = /** @type {HTMLElement} */ (document.getElementById('app'))
+
+/* ------------------------------------------------------------------- theming */
+const THEME_BAR = { dark: '#0d0b1c', bloom: '#fff4ef' }
+let theme = 'dark'
+try { const s = localStorage.getItem('compass-theme'); if (s === 'dark' || s === 'bloom') theme = s } catch {}
+function applyTheme(t) {
+  theme = t
+  document.documentElement.dataset.theme = t
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', THEME_BAR[t] || THEME_BAR.dark)
+  try { localStorage.setItem('compass-theme', t) } catch {}
+}
+/** Theme-aware higher-order colour (deeper on the light Bloom theme). */
+const hoColor = (id) => (theme === 'bloom' ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
+
+const state = {
+  step: 'welcome', // welcome | maxdiff | portrait | results
+  mdIndex: 0,
+  ptIndex: 0,
+  /** @type {Record<string,{best:string|null,worst:string|null}>} */ md: {},
+  /** @type {Record<string,number>} */ pt: {},
+}
+
+const TOTAL = MAXDIFF_BLOCKS.length + PORTRAIT_ITEMS.length
+const answeredCount = () => Object.values(state.md).filter((c) => c.best && c.worst).length + Object.keys(state.pt).length
+
+/* ------------------------------------------------------------------- helpers */
+function mount(html) {
+  root.innerHTML = html
+  return root.firstElementChild
+}
+function go(step, patch = {}) { Object.assign(state, patch, { step }); render() }
+
+function topbar(onBack) {
+  const pct = Math.round((answeredCount() / TOTAL) * 100)
+  return `
+    <div class="topbar">
+      ${onBack ? '<button class="backlink" data-back>← Back</button>' : '<span style="width:48px"></span>'}
+      <div class="progress"><i style="width:${pct}%"></i></div>
+      <span class="counter">${answeredCount()} / ${TOTAL}</span>
+    </div>`
+}
+
+/* ------------------------------------------------------------------- welcome */
+function viewWelcome() {
+  const node = mount(`
+    <section class="view">
+      <div class="card">
+        <div class="eyebrow">Compass · values discovery</div>
+        <h1 class="display">What do you <em>really</em>&nbsp;value?</h1>
+        <p class="lede">
+          Not the values you'd <i>like</i> to have — the ones you actually live by. This short
+          experience uses forced trade-offs and indirect questions, grounded in the
+          <strong>Schwartz model of basic human values</strong>, to map your real priorities and
+          the tensions between them.
+        </p>
+        <div class="btn-row">
+          <button class="btn" data-begin>Begin →</button>
+          <span class="fine">~5 minutes · ${TOTAL} quick choices</span>
+        </div>
+        <p class="fine" style="margin-top:26px">
+          A mirror for reflection, not a verdict or a personality “type”. Prototype items —
+          not a clinical or validated assessment.
+        </p>
+      </div>
+    </section>`)
+  node.querySelector('[data-begin]').addEventListener('click', () => go('maxdiff'))
+}
+
+/* ------------------------------------------------------------------- maxdiff */
+function viewMaxDiff() {
+  const block = MAXDIFF_BLOCKS[state.mdIndex]
+  const cur = state.md[block.id] || { best: null, worst: null }
+
+  const rows = block.valueIds.map((id) => {
+    const v = valueById(id)
+    const cls = cur.best === id ? 'most' : cur.worst === id ? 'least' : ''
+    return `
+      <div class="md-row ${cls}" data-id="${id}">
+        <span class="label"><span class="dot" style="color:${v.color}"></span><span class="txt">${v.short}</span></span>
+        <span class="pick">
+          <button class="most ${cur.best === id ? 'on' : ''}" data-pick="best" data-id="${id}">Most</button>
+          <button class="least ${cur.worst === id ? 'on' : ''}" data-pick="worst" data-id="${id}">Least</button>
+        </span>
+      </div>`
+  }).join('')
+
+  const node = mount(`
+    <section class="view">
+      <div class="card">
+        ${topbar(true)}
+        <div class="qhead">
+          <div class="k">Trade-off · ${state.mdIndex + 1} of ${MAXDIFF_BLOCKS.length}</div>
+          <h2>Of these four, which matters <em>most</em> to you — and which <em>least</em>?</h2>
+        </div>
+        <div class="md-list">${rows}</div>
+        <div class="btn-row">
+          <button class="btn" data-next ${cur.best && cur.worst ? '' : 'disabled'}>Continue →</button>
+          <span class="fine">Pick one “Most” and one “Least”.</span>
+        </div>
+      </div>
+    </section>`)
+
+  node.querySelector('[data-back]')?.addEventListener('click', backFromMaxDiff)
+  node.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.getAttribute('data-id'); const kind = b.getAttribute('data-pick')
+    const c = state.md[block.id] || { best: null, worst: null }
+    if (kind === 'best') { c.best = c.best === id ? null : id; if (c.worst === id) c.worst = null }
+    else { c.worst = c.worst === id ? null : id; if (c.best === id) c.best = null }
+    state.md[block.id] = c
+    if (c.best && c.worst) setTimeout(nextMaxDiff, 260)
+    else render()
+  }))
+  node.querySelector('[data-next]')?.addEventListener('click', nextMaxDiff)
+}
+function nextMaxDiff() {
+  if (state.mdIndex < MAXDIFF_BLOCKS.length - 1) go('maxdiff', { mdIndex: state.mdIndex + 1 })
+  else go('portrait', { ptIndex: 0 })
+}
+function backFromMaxDiff() {
+  if (state.mdIndex > 0) go('maxdiff', { mdIndex: state.mdIndex - 1 })
+  else go('welcome')
+}
+
+/* ------------------------------------------------------------------ portrait */
+function viewPortrait() {
+  const item = PORTRAIT_ITEMS[state.ptIndex]
+  const cur = state.pt[item.id]
+  const dots = PORTRAIT_SCALE.map((s) =>
+    `<button class="dotbtn ${cur === s.value ? 'on' : ''}" data-val="${s.value}" title="${s.label}">${s.value}</button>`,
+  ).join('')
+
+  const node = mount(`
+    <section class="view">
+      <div class="card">
+        ${topbar(true)}
+        <div class="qhead"><div class="k">Reflect · ${state.ptIndex + 1} of ${PORTRAIT_ITEMS.length}</div>
+          <h2 class="subq">How much is this person like you?</h2>
+        </div>
+        <blockquote class="quote" data-value="${item.valueId}">${item.text}</blockquote>
+        <div class="scale">
+          <div class="scale-ends"><span>${PORTRAIT_SCALE[0].label}</span><span>${PORTRAIT_SCALE[5].label}</span></div>
+          <div class="dots">${dots}</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" data-skip>Skip</button>
+          <span class="fine">Tap a number to continue.</span>
+        </div>
+      </div>
+    </section>`)
+
+  node.querySelector('[data-back]')?.addEventListener('click', backFromPortrait)
+  node.querySelectorAll('[data-val]').forEach((b) => b.addEventListener('click', () => {
+    state.pt[item.id] = Number(b.getAttribute('data-val'))
+    setTimeout(nextPortrait, 220)
+  }))
+  node.querySelector('[data-skip]')?.addEventListener('click', nextPortrait)
+}
+function nextPortrait() {
+  if (state.ptIndex < PORTRAIT_ITEMS.length - 1) go('portrait', { ptIndex: state.ptIndex + 1 })
+  else go('results')
+}
+function backFromPortrait() {
+  if (state.ptIndex > 0) go('portrait', { ptIndex: state.ptIndex - 1 })
+  else go('maxdiff', { mdIndex: MAXDIFF_BLOCKS.length - 1 })
+}
+
+/* ------------------------------------------------------------------- results */
+function viewResults() {
+  const maxdiffChoices = MAXDIFF_BLOCKS.map((b) => ({ blockId: b.id, ...(state.md[b.id] || { best: null, worst: null }) }))
+  const { profile } = analyze({
+    portraitItems: PORTRAIT_ITEMS, portraitResponses: state.pt,
+    maxdiffBlocks: MAXDIFF_BLOCKS, maxdiffChoices,
+  })
+
+  const lo = -1.6; const hi = 1.6
+  const pctOf = (c) => Math.round(Math.max(0, Math.min(1, (c - lo) / (hi - lo))) * 100)
+  const confChip = (k) => `<span class="chip conf-${k}"><span class="d"></span>${k === 'single' ? 'one signal' : k} confidence</span>`
+
+  const top = profile.ranked.slice(0, 5).map((id, i) => {
+    const v = valueById(id)
+    return `
+      <div class="vrow">
+        <span class="vrank">${i + 1}</span>
+        <span class="vname">${v.name}<small>${v.blurb}</small>
+          <span class="meter"><i style="width:${pctOf(profile.combined[id])}%;background:linear-gradient(90deg,${v.color},${v.color}99)"></i></span>
+        </span>
+        ${confChip(profile.valueConfidence[id])}
+      </div>`
+  }).join('')
+
+  const tensions = profile.tensions.length
+    ? `<div class="panel"><h3>⚡ Live tensions</h3>
+        <p class="fine" style="margin-bottom:8px">Opposing values you <em>both</em> prize highly — the real trade-offs you navigate.</p>
+        ${profile.tensions.map((t) => `<div class="tension">${valueById(t.a).name} <span class="vs">⟷</span> ${valueById(t.b).name}</div>`).join('')}
+       </div>`
+    : ''
+
+  const axes = [
+    { pos: 'self_transcendence', neg: 'self_enhancement' },
+    { pos: 'openness', neg: 'conservation' },
+  ].map((ax) => {
+    const pv = profile.higher[ax.pos]; const nv = profile.higher[ax.neg]
+    const diff = pv - nv // positive → leans pos side
+    const knob = 50 + Math.max(-48, Math.min(48, diff * 26))
+    const pm = HIGHER_ORDER_META[ax.pos]; const nm = HIGHER_ORDER_META[ax.neg]
+    const leanColor = hoColor(diff >= 0 ? ax.pos : ax.neg)
+    return `
+      <div class="axisbar">
+        <div class="lbls"><span style="color:${hoColor(ax.neg)}">${nm.name}</span><span style="color:${hoColor(ax.pos)}">${pm.name}</span></div>
+        <div class="axistrack"><span class="mid"></span>
+          <span class="knob" style="left:${knob}%;background:${leanColor};color:${leanColor}"></span>
+        </div>
+      </div>`
+  }).join('')
+
+  const dom = HIGHER_ORDER_META[profile.dominantHigher]
+  const conv = profile.convergence == null ? null : Math.round(profile.convergence * 100)
+
+  mount(`
+    <section class="view wide">
+      <div class="card">
+        ${topbar(false)}
+        <div class="results-grid">
+          <div>
+            <div class="hero-orient">Your centre of gravity</div>
+            <h2 class="hero-title" style="color:${hoColor(profile.dominantHigher)}">${dom.name}</h2>
+            <p class="fine" style="margin-bottom:18px">
+              ${conv == null ? '' : `Your two signals agreed ~${conv}% — a rough, uncalibrated confidence cue.`}
+            </p>
+            ${renderCircumplex(profile, { theme })}
+          </div>
+          <div>
+            <div class="hero-orient">What matters most — to you</div>
+            <p class="fine" style="margin:6px 0 14px">These are <em>relative</em> priorities (most → least important to you), not absolute scores or a comparison to other people.</p>
+            <div class="vlist">${top}</div>
+            <div class="panel" style="margin-top:18px"><h3>Your two value axes</h3>${axes}</div>
+            ${tensions}
+          </div>
+        </div>
+
+        <div class="disclaimer">
+          <p class="fine">
+            <strong>Read this as a mirror, not a verdict.</strong> This prototype maps the priorities behind your
+            choices using the Schwartz circumplex. It is not a personality type, not clinical, and not a validated
+            instrument — some values are measured less reliably than others. The most useful question isn't
+            “is this exactly right?” but “where does it ring true, and where doesn't it — and why?”
+          </p>
+        </div>
+        <div class="foot">
+          <button class="btn ghost" data-restart>Start again</button>
+          <p class="fine" style="margin-top:14px">Built on <a href="../RESEARCH_AND_PLAN.md">the research &amp; product plan →</a></p>
+        </div>
+      </div>
+    </section>`)
+
+  root.querySelector('[data-restart]').addEventListener('click', () =>
+    go('welcome', { mdIndex: 0, ptIndex: 0, md: {}, pt: {} }))
+}
+
+/* -------------------------------------------------------------------- render */
+function render() {
+  if (state.step === 'welcome') viewWelcome()
+  else if (state.step === 'maxdiff') viewMaxDiff()
+  else if (state.step === 'portrait') viewPortrait()
+  else if (state.step === 'results') viewResults()
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+// Apply the saved theme and wire the switcher (lives outside #app, so it
+// persists across re-renders). Re-render on change so the SVG palette updates.
+applyTheme(theme)
+const themeSel = /** @type {HTMLSelectElement|null} */ (document.getElementById('themeSelect'))
+if (themeSel) {
+  themeSel.value = theme
+  themeSel.addEventListener('change', () => {
+    // Cross-fade colours during the switch and suppress the entrance keyframe so
+    // the two transitions don't fight (see .theme-animating rules in styles.css).
+    const html = document.documentElement
+    html.classList.add('theme-animating')
+    applyTheme(themeSel.value)
+    render()
+    setTimeout(() => html.classList.remove('theme-animating'), 520)
+  })
+}
+
+render()
+
+// Register the service worker so the app is installable & works offline.
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {})
+  })
+}
+})();
+  </script>
+</body>
+</html>

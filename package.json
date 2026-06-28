@@ -1,0 +1,20 @@
+{
+  "name": "values-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A research-grounded app that helps people discover their real values (Schwartz circumplex). MVP engine + web UI.",
+  "scripts": {
+    "test": "node --test",
+    "demo": "node demo/demo.js",
+    "serve": "node web/serve.js",
+    "build:standalone": "node scripts/build-standalone.mjs",
+    "screenshots": "node scripts/screenshots.mjs"
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
+  }
+}

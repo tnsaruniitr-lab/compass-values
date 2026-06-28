@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Compass — discover what you really value</title>
+  <meta name="description" content="A research-grounded way to discover your real, operative values — based on the Schwartz circumplex of basic human values." />
+  <meta name="theme-color" content="#0d0b1c" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Compass" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="aurora" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <span class="blob b4"></span>
+    <div class="grain"></div>
+  </div>
+
+  <div class="theme-switch">
+    <span class="theme-ic" aria-hidden="true">◐</span>
+    <select id="themeSelect" aria-label="Choose a theme">
+      <option value="dark">Twilight</option>
+      <option value="bloom">Bloom</option>
+    </select>
+  </div>
+
+  <main id="app" class="app"></main>
+
+  <noscript>
+    <div class="stage"><div class="card">This experience needs JavaScript enabled.</div></div>
+  </noscript>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
