@@ -3,9 +3,30 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   VALUE_IDS, PORTRAIT_ITEMS, MAXDIFF_BLOCKS, OPPOSING_PAIRS,
-  scorePortrait, scoreMaxDiff, buildProfile, analyze, quadrantForAngle, valueById,
+  scorePortrait, scoreMaxDiff, scoreTiers, buildProfile, analyze, quadrantForAngle, valueById,
 } from '../engine/index.js'
 import { makeRespondent, ARCHETYPES } from '../demo/synthetic.js'
+
+test('scoreTiers: most=+1, least=−1, neutral=0; answered counts placements', () => {
+  const { scores, answered } = scoreTiers({ benevolence: 'most', universalism: 'most', power: 'least' })
+  assert.equal(scores.benevolence, 1)
+  assert.equal(scores.universalism, 1)
+  assert.equal(scores.power, -1)
+  assert.equal(scores.security, 0)
+  assert.equal(answered, 3)
+})
+
+test('buildProfile from a tier sort ranks most→least and finds the right quadrant', () => {
+  const tiers = scoreTiers({
+    benevolence: 'most', universalism: 'most', self_direction: 'most',
+    power: 'least', achievement: 'least', hedonism: 'least',
+  })
+  const profile = buildProfile({ tiers })
+  assert.equal(profile.signalCount, 1)
+  assert.ok(profile.top.includes('benevolence') || profile.top.includes('universalism'))
+  assert.ok(profile.bottom.includes('power') || profile.bottom.includes('achievement'))
+  assert.equal(profile.dominantHigher, 'self_transcendence')
+})
 
 test('model: 10 values, distinct angles, correct oppositions', () => {
   assert.equal(VALUE_IDS.length, 10)

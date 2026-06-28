@@ -81,14 +81,33 @@ export function scoreMaxDiff(blocks, choices) {
   return { bw, appear, best, worst, answered: choices.length }
 }
 
+/* -------------------------------- tier scoring ----------------------------- */
+/**
+ * Score a one-screen tier sort: each value is 'most', 'least', or neutral.
+ * Returns per-value scores (most = +1, least = −1, neutral = 0) — a single,
+ * trade-off-forced signal that feeds buildProfile like the other instruments.
+ * @param {Record<string, 'most'|'least'|null|undefined>} assign
+ */
+export function scoreTiers(assign = {}) {
+  /** @type {Record<string, number>} */ const scores = {}
+  let answered = 0
+  for (const id of VALUE_IDS) {
+    const t = assign[id]
+    scores[id] = t === 'most' ? 1 : t === 'least' ? -1 : 0
+    if (t === 'most' || t === 'least') answered++
+  }
+  return { scores, answered }
+}
+
 /* ------------------------------ profile builder ---------------------------- */
 /**
- * @param {{portrait?: ReturnType<typeof scorePortrait>|null, maxdiff?: ReturnType<typeof scoreMaxDiff>|null}} signals
+ * @param {{portrait?: ReturnType<typeof scorePortrait>|null, maxdiff?: ReturnType<typeof scoreMaxDiff>|null, tiers?: ReturnType<typeof scoreTiers>|null}} signals
  */
-export function buildProfile({ portrait = null, maxdiff = null } = {}) {
+export function buildProfile({ portrait = null, maxdiff = null, tiers = null } = {}) {
   const zSignals = []
   if (portrait && portrait.answered) zSignals.push(zmap(portrait.centered))
   if (maxdiff && maxdiff.answered) zSignals.push(zmap(maxdiff.bw))
+  if (tiers && tiers.answered) zSignals.push(zmap(tiers.scores))
   if (!zSignals.length) throw new Error('buildProfile: no signals provided')
 
   /** @type {Record<string, number>} */ const combined = {}

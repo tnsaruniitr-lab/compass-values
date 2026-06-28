@@ -46,37 +46,21 @@ await page.waitForSelector('.display'); await sleep(700)
 await page.screenshot({ path: `${OUT}/01-welcome.png` })
 
 await page.click('[data-begin]')
-await page.waitForSelector('.md-list'); await sleep(600)
-await page.screenshot({ path: `${OUT}/02-maxdiff.png` })
+await page.waitForSelector('.sortlist'); await sleep(400)
 
-// MaxDiff — drive the (dynamic-length) block sequence.
-let guard = 0
-while (await page.$('.md-list') && guard++ < 40) {
-  const ids = await page.$$eval('.md-row', (rows) => rows.map((r) => r.getAttribute('data-id')))
-  if (!ids.length) break
-  const most = ids.find((id) => HIGH.has(id)) || ids[0]
-  let least = ids.find((id) => LOW.has(id)) || ids[ids.length - 1]
-  if (least === most) least = ids[ids.length - 1]
-  await page.click(`.md-row[data-id="${most}"] button.most`)
-  await page.click(`.md-row[data-id="${least}"] button.least`)
-  await sleep(220)
-  const next = await page.$('[data-next]:not([disabled])') // explicit Continue (no auto-advance)
-  if (next) await next.click()
-  await sleep(260)
-}
+// Dismiss the first-time tutorial if present.
+const tut = await page.$('[data-tut-ok]'); if (tut) { await tut.click(); await sleep(300) }
 
-// Portrait — rate each (dynamic-length) item.
-await page.waitForSelector('.quote')
-let i = 0
-while (await page.$('.quote') && i < 40) {
-  const vid = await page.$eval('.quote', (q) => q.getAttribute('data-value'))
-  const val = HIGH.has(vid) ? 6 : LOW.has(vid) ? 2 : 4
-  if (i === 4) { await sleep(400); await page.screenshot({ path: `${OUT}/03-portrait.png` }) }
-  await page.click(`.dotbtn[data-val="${val}"]`); await sleep(160)
-  const pnext = await page.$('[data-next]:not([disabled])'); if (pnext) await pnext.click() // explicit Continue
-  await sleep(220)
-  i++
+// Lift 3 "most" and drop 3 "least".
+for (const id of ['self_direction', 'universalism', 'benevolence']) {
+  await page.click(`.sr-up[data-id="${id}"]`); await sleep(220)
 }
+for (const id of ['power', 'achievement', 'tradition']) {
+  await page.click(`.sr-down[data-id="${id}"]`); await sleep(220)
+}
+await sleep(300)
+await page.screenshot({ path: `${OUT}/02-sort.png` })
+const next = await page.$('[data-next]:not([disabled])'); if (next) await next.click()
 
 // Story results — capture the constellation, the career reveal, and the compass.
 await page.waitForSelector('.scene-work'); await sleep(1400)
