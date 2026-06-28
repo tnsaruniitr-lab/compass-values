@@ -2378,11 +2378,13 @@ const hoColor = (id) => (themeMode(theme) === 'light' ? HIGHER_ORDER_DEEP[id] : 
 
 const state = {
   step: 'welcome', // welcome | sort | results
-  /** @type {string[]} */ order: [], // value ids, top = most important
-  moves: 0, // how many times the person has reordered (engagement gate)
+  /** @type {string[][]} */ rounds: [[], []], // two rounds of 5; top = most important
+  roundIndex: 0,
+  moves: 0, // reorders in the current round (engagement gate)
 }
 
-const SORT_MIN_MOVES = 3
+const ROUND_SIZE = 5
+const ROUND_MIN_MOVES = 2
 const shuffle = (arr) => {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
@@ -2397,12 +2399,13 @@ function mount(html) {
 function go(step, patch = {}) { Object.assign(state, patch, { step }); render() }
 
 function topbar(onBack) {
-  const pct = Math.round((Math.min(state.moves, SORT_MIN_MOVES) / SORT_MIN_MOVES) * 100)
+  const roundFrac = Math.min(state.moves, ROUND_MIN_MOVES) / ROUND_MIN_MOVES
+  const pct = Math.round(((state.roundIndex + roundFrac) / 2) * 100)
   return `
     <div class="topbar">
       ${onBack ? '<button class="backlink" data-back>← Back</button>' : '<span style="width:48px"></span>'}
       <div class="progress"><i style="width:${pct}%"></i></div>
-      <span class="counter">${state.moves >= SORT_MIN_MOVES ? 'ready ✓' : 'arrange'}</span>
+      <span class="counter">Round ${state.roundIndex + 1} of 2</span>
     </div>`
 }
 
@@ -2498,7 +2501,10 @@ function viewWelcome() {
         </p>
       </div>
     </section>`)
-  node.querySelector('[data-begin]').addEventListener('click', () => go('sort', { order: shuffle(VALUES.map((v) => v.id)), moves: 0 }))
+  node.querySelector('[data-begin]').addEventListener('click', () => {
+    const ids = shuffle(VALUES.map((v) => v.id))
+    go('sort', { rounds: [ids.slice(0, ROUND_SIZE), ids.slice(ROUND_SIZE)], roundIndex: 0, moves: 0 })
+  })
 }
 
 /* --------------------------------------------------------------------- sort */
@@ -2517,11 +2523,13 @@ function sortCard(id, rank, total) {
 }
 
 function viewSort() {
-  const ready = state.moves >= SORT_MIN_MOVES
-  const cards = state.order.map((id, i) => sortCard(id, i, state.order.length)).join('')
+  const order = state.rounds[state.roundIndex]
+  const ready = state.moves >= ROUND_MIN_MOVES
+  const lastRound = state.roundIndex >= state.rounds.length - 1
+  const cards = order.map((id, i) => sortCard(id, i, order.length)).join('')
   const hint = ready
-    ? 'Looks right? Fine-tune, or see your results.'
-    : 'Drag the cards — most important to the top, least to the bottom.'
+    ? 'Looks right? Fine-tune, or move on.'
+    : 'Drag what matters most to the top, least to the bottom.'
 
   const tutorial = seenTutorial() ? '' : `
     <div class="tut" data-tut>
@@ -2536,8 +2544,8 @@ function viewSort() {
           <span class="td-lbl td-bot">least ↓</span>
         </div>
         <h3>Drag to sort</h3>
-        <p>Drag each card by its handle — what matters <strong>most</strong> to the <strong>top</strong>, what matters <strong>least</strong> to the <strong>bottom</strong>.</p>
-        <p class="tut-fine">Don’t overthink the middle. There are no right answers.</p>
+        <p>Drag what matters <strong>most</strong> to you up to the <strong>top</strong>, and what matters <strong>least</strong> down to the <strong>bottom</strong>.</p>
+        <p class="tut-fine">A few cards at a time. Don’t overthink the middle.</p>
         <button class="btn" data-tut-ok>Got it →</button>
       </div>
     </div>`
@@ -2548,7 +2556,7 @@ function viewSort() {
         <div class="stickyhead">
           ${topbar(true)}
           <div class="qhead">
-            <div class="k">Sort your values</div>
+            <div class="k">Round ${state.roundIndex + 1} of 2 · ${order.length} values</div>
             <h2>Drag what matters <em>most</em> to the top</h2>
           </div>
         </div>
@@ -2556,16 +2564,21 @@ function viewSort() {
         <div class="sortlist" data-list role="list">${cards}</div>
         <div class="ranklbl ranklbl-bot">▼ Matters least</div>
         <div class="stickyfoot">
-          <button class="btn" data-next ${ready ? '' : 'disabled'}>See your results →</button>
+          <button class="btn" data-next ${ready ? '' : 'disabled'}>${lastRound ? 'See your results →' : 'Next round →'}</button>
           <span class="fine">${hint}</span>
         </div>
       </div>
       ${tutorial}
     </section>`)
 
-  node.querySelector('[data-back]')?.addEventListener('click', () => go('welcome'))
+  node.querySelector('[data-back]')?.addEventListener('click', () =>
+    (state.roundIndex > 0 ? go('sort', { roundIndex: state.roundIndex - 1, moves: ROUND_MIN_MOVES }) : go('welcome')))
   node.querySelector('[data-tut-ok]')?.addEventListener('click', () => { markTutorial(); render() })
-  node.querySelector('[data-next]')?.addEventListener('click', () => { if (state.moves >= SORT_MIN_MOVES) go('results') })
+  node.querySelector('[data-next]')?.addEventListener('click', () => {
+    if (state.moves < ROUND_MIN_MOVES) return
+    if (lastRound) go('results')
+    else go('sort', { roundIndex: state.roundIndex + 1, moves: 0 })
+  })
   wireDragSort(node.querySelector('[data-list]'))
 }
 
@@ -2629,7 +2642,7 @@ function wireDragSort(list) {
       if (line) line.remove()
       const ids = cards().filter((c) => c !== d.card).map((c) => c.dataset.id)
       ids.splice(Math.max(0, Math.min(ids.length, idx)), 0, d.id)
-      state.order = ids; state.moves += 1
+      state.rounds[state.roundIndex] = ids; state.moves += 1
       render()
     } else if (line) { line.remove() }
   }
@@ -2642,7 +2655,12 @@ function wireDragSort(list) {
 const knobPos = (v, scale = 22) => 50 + Math.max(-46, Math.min(46, v * scale))
 
 function viewResults() {
-  const profile = buildProfile({ tiers: scoreRanking(state.order) })
+  // Combine the two rounds: each value scored by its within-round rank.
+  const s1 = scoreRanking(state.rounds[0]).scores
+  const s2 = scoreRanking(state.rounds[1]).scores
+  const scores = {}
+  VALUES.forEach((v) => { scores[v.id] = (s1[v.id] || 0) + (s2[v.id] || 0) })
+  const profile = buildProfile({ tiers: { scores, answered: VALUES.length } })
 
   const identity = synthesizeIdentity(profile)
   const career = careerReport(profile, VALUE_BY_ID, 3)
@@ -2790,7 +2808,7 @@ function viewResults() {
     img.setAttribute('src', src)
   })
   root.querySelector('[data-restart]').addEventListener('click', () =>
-    go('welcome', { order: [], moves: 0 }))
+    go('welcome', { rounds: [[], []], roundIndex: 0, moves: 0 }))
 }
 
 /* -------------------------------------------------------------------- render */
@@ -2802,7 +2820,8 @@ function render() {
   document.body.dataset.view = state.step === 'results' ? 'story' : 'flow'
   // Scroll to top only when the STEP changes — not on every selection
   // re-render (so tapping a value doesn't yank the page up).
-  if (state.step !== lastViewKey) { window.scrollTo({ top: 0, behavior: 'smooth' }); lastViewKey = state.step }
+  const viewKey = `${state.step}:${state.roundIndex}`
+  if (viewKey !== lastViewKey) { window.scrollTo({ top: 0, behavior: 'smooth' }); lastViewKey = viewKey }
 }
 let lastViewKey = null
 

@@ -61,9 +61,13 @@ async function dragLastToTop() {
   for (let s = 1; s <= 12; s++) { await page.mouse.move(gb.x + gb.width / 2, gb.y - (gb.y - (fb.y - 6)) * s / 12); await sleep(16) }
   await page.mouse.up(); await sleep(250)
 }
-await dragLastToTop(); await dragLastToTop(); await dragLastToTop()
-await page.screenshot({ path: `${OUT}/02-sort.png` })
-const next = await page.$('[data-next]:not([disabled])'); if (next) await next.click()
+// Two rounds of 5 — drag a couple in each, then advance.
+for (let round = 0; round < 2; round++) {
+  await dragLastToTop(); await dragLastToTop()
+  if (round === 0) await page.screenshot({ path: `${OUT}/02-sort.png` })
+  const next = await page.$('[data-next]:not([disabled])'); if (next) await next.click()
+  await sleep(350)
+}
 
 // Story results — capture the constellation, the career reveal, and the compass.
 await page.waitForSelector('.scene-work'); await sleep(1400)
