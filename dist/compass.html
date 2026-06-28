@@ -589,6 +589,145 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
   .scene { padding: 48px 18px; }
 }
 
+/* ==========================================================================
+   Elegance pass (cross-theme) — soften the "tool" feel into a calm story
+   ========================================================================== */
+/* The fit badge: a quiet, refined chip rather than a loud debug tag. */
+.arch-band {
+  top: 16px; left: 16px;
+  font-size: 10.5px; letter-spacing: 0.16em; font-weight: 600;
+  padding: 7px 13px; border-radius: 99px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg-1) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.band-strong, .band-clear, .band-slight { background: color-mix(in srgb, var(--bg-1) 62%, transparent); }
+.arch-band::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); margin-right: 7px; vertical-align: middle;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* Compass: airy rows with hairline dividers read as an elegant list, not a form. */
+.compass { gap: 0; }
+.cdim { padding: 22px 0; }
+.cdim + .cdim { border-top: 1px solid var(--line); }
+.ctrack { height: 4px; }
+.ctrack .cknob { width: 14px; height: 14px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-2) 18%, transparent), 0 0 14px var(--accent-2); }
+.clabels { font-size: 12.5px; letter-spacing: 0.01em; }
+
+/* Roles: softer, more tactile pills. */
+.role { padding: 7px 14px; font-size: 13.5px; transition: transform 0.16s ease, border-color 0.2s ease; }
+.role:hover { transform: translateY(-1px); border-color: var(--accent); }
+
+/* A touch more air around scene headings. */
+.scene-h2 { margin-bottom: 2px; }
+.arch-story { font-size: 16.5px; line-height: 1.65; }
+
+/* ===================================================== Midnight (ink+gold) === */
+[data-theme="midnight"] {
+  --bg-0: #07080b; --bg-1: #0e1016; --bg-2: #171b25;
+  --text: #edeff5; --muted: #a8aebe; --faint: #6d7488;
+  --line: rgba(255, 255, 255, 0.085); --line-strong: rgba(255, 255, 255, 0.16);
+  --glass: rgba(255, 255, 255, 0.038); --glass-2: rgba(255, 255, 255, 0.062);
+  --accent: #d9b87a; --accent-2: #e2c389;
+  --good: #86c79b; --warn: #e3b465; --focus: #d9b87a;
+  --st: #7fd6b0; --op: #7bbce8; --se: #e89b8e; --co: #a6a3e6;
+  --shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
+}
+[data-theme="midnight"] body { background: radial-gradient(140% 120% at 50% -10%, #171b25 0%, #0e1016 46%, #07080b 100%) fixed; }
+[data-theme="midnight"] .b1 { background: radial-gradient(circle, #caa86a, transparent 60%); opacity: 0.26; }
+[data-theme="midnight"] .b2 { background: radial-gradient(circle, #8b7bc0, transparent 60%); opacity: 0.20; }
+[data-theme="midnight"] .b3 { background: radial-gradient(circle, #5a7494, transparent 60%); opacity: 0.22; }
+[data-theme="midnight"] .b4 { background: radial-gradient(circle, #c98a7a, transparent 62%); opacity: 0.18; }
+[data-theme="midnight"] .btn {
+  color: #1a140a; background: linear-gradient(120deg, #ecd198, #d9b87a 55%, #c8a766);
+  box-shadow: 0 14px 34px -12px rgba(217, 184, 122, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+[data-theme="midnight"] .btn:hover { filter: brightness(1.05) saturate(1.05); box-shadow: 0 20px 48px -12px rgba(217, 184, 122, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+[data-theme="midnight"] .display em { background: linear-gradient(120deg, #ecd198, #e2c389 50%, #e89b8e); -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-theme="midnight"] .progress > i { background: linear-gradient(90deg, #ecd198, #c8a766); box-shadow: none; }
+
+/* ===================================================== Linen (warm paper) ==== */
+[data-theme="linen"] {
+  --bg-0: #f3ecdf; --bg-1: #efe7d7; --bg-2: #f8f2e7;
+  --text: #3a342a; --muted: #6c6354; --faint: #948a76;
+  --line: rgba(85, 68, 42, 0.14); --line-strong: rgba(85, 68, 42, 0.22);
+  --glass: rgba(255, 252, 245, 0.5); --glass-2: rgba(255, 253, 248, 0.72);
+  --surface: #fffdf7; --track: rgba(85, 68, 42, 0.12);
+  --accent: #b5663f; --accent-2: #5f7d5a;
+  --good: #5f7d5a; --warn: #b3812f; --focus: #b5663f;
+  --control-border: rgba(120, 92, 60, 0.34);
+  --st: #3f7d5a; --op: #2f6f9e; --se: #c0492f; --co: #6a5fbf;
+  --shadow: 0 1px 2px rgba(90, 70, 40, 0.10), 0 12px 28px -8px rgba(150, 120, 80, 0.22), 0 40px 80px -40px rgba(140, 110, 70, 0.18);
+}
+[data-theme="linen"] .b1 { background: radial-gradient(circle, #eccda1, transparent 60%); }
+[data-theme="linen"] .b2 { background: radial-gradient(circle, #d8c2a0, transparent 60%); }
+[data-theme="linen"] .b3 { background: radial-gradient(circle, #c2d3b4, transparent 60%); }
+[data-theme="linen"] .b4 { background: radial-gradient(circle, #e8b89c, transparent 62%); }
+
+/* ===================================================== Meadow (sage green) === */
+[data-theme="meadow"] {
+  --bg-0: #eef3e8; --bg-1: #e6efe0; --bg-2: #f3f7ed;
+  --text: #2e362b; --muted: #5c6553; --faint: #869177;
+  --line: rgba(50, 70, 40, 0.14); --line-strong: rgba(50, 70, 40, 0.22);
+  --glass: rgba(252, 255, 248, 0.5); --glass-2: rgba(253, 255, 250, 0.74);
+  --surface: #fbfdf7; --track: rgba(50, 70, 40, 0.12);
+  --accent: #3f7d5a; --accent-2: #b07d34;
+  --good: #3f7d5a; --warn: #b07d34; --focus: #3f7d5a;
+  --control-border: rgba(70, 95, 55, 0.34);
+  --st: #2f7d52; --op: #2f6f9e; --se: #c25a3a; --co: #6a5fbf;
+  --shadow: 0 1px 2px rgba(50, 70, 40, 0.10), 0 12px 28px -8px rgba(90, 130, 70, 0.22), 0 40px 80px -40px rgba(80, 120, 60, 0.18);
+}
+[data-theme="meadow"] .b1 { background: radial-gradient(circle, #c2e0b8, transparent 60%); }
+[data-theme="meadow"] .b2 { background: radial-gradient(circle, #dbe3a8, transparent 60%); }
+[data-theme="meadow"] .b3 { background: radial-gradient(circle, #a8d6c0, transparent 60%); }
+[data-theme="meadow"] .b4 { background: radial-gradient(circle, #e7d09b, transparent 62%); }
+
+/* ===== Shared light-surface treatment (Linen + Meadow) — adapts via vars ===== */
+:is([data-theme="linen"], [data-theme="meadow"]) html { background: var(--bg-0); }
+:is([data-theme="linen"], [data-theme="meadow"]) body {
+  background: radial-gradient(135% 115% at 50% -10%, var(--bg-2) 0%, var(--bg-1) 46%, var(--bg-0) 100%) fixed;
+}
+:is([data-theme="linen"], [data-theme="meadow"]) .blob { mix-blend-mode: normal; filter: blur(82px); opacity: 0.52; }
+:is([data-theme="linen"], [data-theme="meadow"]) .grain { opacity: 0.03; mix-blend-mode: multiply; }
+:is([data-theme="linen"], [data-theme="meadow"]) .card {
+  background: linear-gradient(180deg, var(--glass-2), var(--glass));
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+:is([data-theme="linen"], [data-theme="meadow"]) .md-row,
+:is([data-theme="linen"], [data-theme="meadow"]) .panel,
+:is([data-theme="linen"], [data-theme="meadow"]) .quote {
+  background: var(--surface); border-color: var(--line-strong);
+  box-shadow: 0 1px 2px rgba(60, 50, 30, 0.06), 0 6px 16px -8px rgba(120, 100, 60, 0.18);
+}
+:is([data-theme="linen"], [data-theme="meadow"]) .meter,
+:is([data-theme="linen"], [data-theme="meadow"]) .progress,
+:is([data-theme="linen"], [data-theme="meadow"]) .ctrack,
+:is([data-theme="linen"], [data-theme="meadow"]) .axistrack { background: var(--track); }
+:is([data-theme="linen"], [data-theme="meadow"]) .pick button,
+:is([data-theme="linen"], [data-theme="meadow"]) .dotbtn {
+  background: var(--surface); border: 1px solid var(--control-border); color: var(--text);
+  box-shadow: 0 1px 2px rgba(60, 50, 30, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+:is([data-theme="linen"], [data-theme="meadow"]) .role { background: var(--surface); border-color: var(--control-border); color: var(--text); }
+:is([data-theme="linen"], [data-theme="meadow"]) .btn {
+  color: #fff8f0;
+  background: linear-gradient(120deg, var(--accent), color-mix(in srgb, var(--accent) 64%, var(--accent-2)));
+  box-shadow: 0 14px 32px -12px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+:is([data-theme="linen"], [data-theme="meadow"]) .btn:hover { filter: brightness(1.04) saturate(1.05); }
+:is([data-theme="linen"], [data-theme="meadow"]) .display em {
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+:is([data-theme="linen"], [data-theme="meadow"]) .progress > i { background: linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow: none; }
+:is([data-theme="linen"], [data-theme="meadow"]) .arch-band { color: var(--text); }
+:is([data-theme="linen"], [data-theme="meadow"]) .quote::before { color: var(--accent); opacity: 0.4; }
+:is([data-theme="linen"], [data-theme="meadow"]) .md-row.most { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
+
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -606,7 +745,10 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
   <div class="theme-switch">
     <span class="theme-ic" aria-hidden="true">◐</span>
     <select id="themeSelect" aria-label="Choose a theme">
+      <option value="linen">Linen</option>
       <option value="dark">Twilight</option>
+      <option value="midnight">Midnight</option>
+      <option value="meadow">Meadow</option>
       <option value="bloom">Bloom</option>
     </select>
   </div>
@@ -1653,14 +1795,14 @@ function shade(color, amt) {
 
 /**
  * @param {{key:string, accent:string}} archetype
- * @param {{theme?:string}} [opts]
+ * @param {{light?:boolean}} [opts]
  * @returns {string} an <svg> string (decorative; aria-hidden)
  */
-function archetypeArt(archetype, { theme = 'dark' } = {}) {
+function archetypeArt(archetype, { light = false } = {}) {
   const { key, accent } = archetype
   const rnd = seededRand(key)
   const W = 800; const H = 520
-  const dark = theme !== 'bloom'
+  const dark = !light
   const base0 = dark ? '#0a0816' : '#fff7f2'
   const base1 = dark ? '#161031' : '#ffe9df'
   const accLight = shade(accent, 0.35)
@@ -1721,18 +1863,28 @@ const { archetypeArt } = __mod_archetypeArt;
 const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
 /* ------------------------------------------------------------------- theming */
-const THEME_BAR = { dark: '#0d0b1c', bloom: '#fff4ef' }
-let theme = 'dark'
-try { const s = localStorage.getItem('compass-theme'); if (s === 'dark' || s === 'bloom') theme = s } catch {}
-function applyTheme(t) {
-  theme = t
-  document.documentElement.dataset.theme = t
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', THEME_BAR[t] || THEME_BAR.dark)
-  try { localStorage.setItem('compass-theme', t) } catch {}
+/** Selectable themes: label (dropdown), browser chrome bar colour, light/dark mode. */
+const THEMES = {
+  linen: { label: 'Linen', bar: '#f4eee2', mode: 'light' },
+  dark: { label: 'Twilight', bar: '#0d0b1c', mode: 'dark' },
+  midnight: { label: 'Midnight', bar: '#0a0c10', mode: 'dark' },
+  meadow: { label: 'Meadow', bar: '#eef3e8', mode: 'light' },
+  bloom: { label: 'Bloom', bar: '#fff4ef', mode: 'light' },
 }
-/** Theme-aware higher-order colour (deeper on the light Bloom theme). */
-const hoColor = (id) => (theme === 'bloom' ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
+const DEFAULT_THEME = 'linen'
+let theme = DEFAULT_THEME
+try { const s = localStorage.getItem('compass-theme'); if (THEMES[s]) theme = s } catch {}
+const themeMode = (t) => (THEMES[t] ? THEMES[t].mode : 'dark')
+function applyTheme(t) {
+  theme = THEMES[t] ? t : DEFAULT_THEME
+  document.documentElement.dataset.theme = theme
+  document.documentElement.dataset.mode = themeMode(theme)
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', THEMES[theme].bar)
+  try { localStorage.setItem('compass-theme', theme) } catch {}
+}
+/** Theme-aware higher-order colour (deeper, legible variant on light themes). */
+const hoColor = (id) => (themeMode(theme) === 'light' ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
 
 const state = {
   step: 'welcome', // welcome | maxdiff | portrait | results
@@ -1909,7 +2061,7 @@ function viewResults() {
         <div class="eyebrow">Your map</div>
         <h2 class="scene-h" style="color:${hoColor(profile.dominantHigher)}">${dom.name}</h2>
         <p class="scene-lede">Here's the shape of what you value — your centre of gravity and the pulls around it.</p>
-        <div class="constellation">${renderCircumplex(profile, { theme })}</div>
+        <div class="constellation">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
       </div>
       <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
     </section>`
@@ -1954,7 +2106,7 @@ function viewResults() {
       <div class="scene-inner">
         <div class="eyebrow">The work that fits you</div>
         <div class="arch-hero" data-key="${primary.key}">
-          ${archetypeArt(primary, { theme })}
+          ${archetypeArt(primary, { light: themeMode(theme) === 'light' })}
           <img class="arch-photo" alt="" data-src="./img/archetype-${primary.key}.webp">
           <div class="arch-band band-${primary.band}">${primary.band === 'strong' ? 'strong fit' : primary.band === 'clear' ? 'clear lean' : 'a lean'}</div>
         </div>

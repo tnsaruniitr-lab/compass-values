@@ -10,18 +10,28 @@ import { archetypeArt } from './archetypeArt.js'
 const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
 /* ------------------------------------------------------------------- theming */
-const THEME_BAR = { dark: '#0d0b1c', bloom: '#fff4ef' }
-let theme = 'dark'
-try { const s = localStorage.getItem('compass-theme'); if (s === 'dark' || s === 'bloom') theme = s } catch {}
-function applyTheme(t) {
-  theme = t
-  document.documentElement.dataset.theme = t
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', THEME_BAR[t] || THEME_BAR.dark)
-  try { localStorage.setItem('compass-theme', t) } catch {}
+/** Selectable themes: label (dropdown), browser chrome bar colour, light/dark mode. */
+const THEMES = {
+  linen: { label: 'Linen', bar: '#f4eee2', mode: 'light' },
+  dark: { label: 'Twilight', bar: '#0d0b1c', mode: 'dark' },
+  midnight: { label: 'Midnight', bar: '#0a0c10', mode: 'dark' },
+  meadow: { label: 'Meadow', bar: '#eef3e8', mode: 'light' },
+  bloom: { label: 'Bloom', bar: '#fff4ef', mode: 'light' },
 }
-/** Theme-aware higher-order colour (deeper on the light Bloom theme). */
-const hoColor = (id) => (theme === 'bloom' ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
+const DEFAULT_THEME = 'linen'
+let theme = DEFAULT_THEME
+try { const s = localStorage.getItem('compass-theme'); if (THEMES[s]) theme = s } catch {}
+const themeMode = (t) => (THEMES[t] ? THEMES[t].mode : 'dark')
+function applyTheme(t) {
+  theme = THEMES[t] ? t : DEFAULT_THEME
+  document.documentElement.dataset.theme = theme
+  document.documentElement.dataset.mode = themeMode(theme)
+  const meta = document.querySelector('meta[name="theme-color"]')
+  if (meta) meta.setAttribute('content', THEMES[theme].bar)
+  try { localStorage.setItem('compass-theme', theme) } catch {}
+}
+/** Theme-aware higher-order colour (deeper, legible variant on light themes). */
+const hoColor = (id) => (themeMode(theme) === 'light' ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
 
 const state = {
   step: 'welcome', // welcome | maxdiff | portrait | results
@@ -198,7 +208,7 @@ function viewResults() {
         <div class="eyebrow">Your map</div>
         <h2 class="scene-h" style="color:${hoColor(profile.dominantHigher)}">${dom.name}</h2>
         <p class="scene-lede">Here's the shape of what you value — your centre of gravity and the pulls around it.</p>
-        <div class="constellation">${renderCircumplex(profile, { theme })}</div>
+        <div class="constellation">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
       </div>
       <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
     </section>`
@@ -243,7 +253,7 @@ function viewResults() {
       <div class="scene-inner">
         <div class="eyebrow">The work that fits you</div>
         <div class="arch-hero" data-key="${primary.key}">
-          ${archetypeArt(primary, { theme })}
+          ${archetypeArt(primary, { light: themeMode(theme) === 'light' })}
           <img class="arch-photo" alt="" data-src="./img/archetype-${primary.key}.webp">
           <div class="arch-band band-${primary.band}">${primary.band === 'strong' ? 'strong fit' : primary.band === 'clear' ? 'clear lean' : 'a lean'}</div>
         </div>

@@ -42,14 +42,14 @@ function shade(color, amt) {
 
 /**
  * @param {{key:string, accent:string}} archetype
- * @param {{theme?:string}} [opts]
+ * @param {{light?:boolean}} [opts]
  * @returns {string} an <svg> string (decorative; aria-hidden)
  */
-export function archetypeArt(archetype, { theme = 'dark' } = {}) {
+export function archetypeArt(archetype, { light = false } = {}) {
   const { key, accent } = archetype
   const rnd = seededRand(key)
   const W = 800; const H = 520
-  const dark = theme !== 'bloom'
+  const dark = !light
   const base0 = dark ? '#0a0816' : '#fff7f2'
   const base1 = dark ? '#161031' : '#ffe9df'
   const accLight = shade(accent, 0.35)
