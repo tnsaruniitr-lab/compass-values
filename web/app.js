@@ -131,8 +131,8 @@ function viewMaxDiff() {
     if (kind === 'best') { c.best = c.best === id ? null : id; if (c.worst === id) c.worst = null }
     else { c.worst = c.worst === id ? null : id; if (c.best === id) c.best = null }
     state.md[block.id] = c
-    if (c.best && c.worst) setTimeout(nextMaxDiff, 260)
-    else render()
+    // No auto-advance: let the person review/change their picks, then tap Continue.
+    render()
   }))
   node.querySelector('[data-next]')?.addEventListener('click', nextMaxDiff)
 }

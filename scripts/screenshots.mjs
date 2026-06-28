@@ -59,7 +59,10 @@ while (await page.$('.md-list') && guard++ < 40) {
   if (least === most) least = ids[ids.length - 1]
   await page.click(`.md-row[data-id="${most}"] button.most`)
   await page.click(`.md-row[data-id="${least}"] button.least`)
-  await sleep(340)
+  await sleep(220)
+  const next = await page.$('[data-next]:not([disabled])') // explicit Continue (no auto-advance)
+  if (next) await next.click()
+  await sleep(260)
 }
 
 // Portrait — rate each (dynamic-length) item.
