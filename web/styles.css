@@ -872,3 +872,10 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
   .spark-toast.show { opacity: 1; transform: translate(-50%, -46px); }
   .spark-toast.gone { opacity: 0; transform: translate(-50%, -46px); }
 }
+
+/* Bring the archetype emblem to life — gentle float + twinkling sparkles. */
+.gen-art .art-motif { transform-box: view-box; transform-origin: 50% 50%; animation: artFloat 7.5s ease-in-out infinite; }
+@keyframes artFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+.gen-art .tw { transform-box: fill-box; transform-origin: center; animation: artTwinkle 2.8s ease-in-out infinite; }
+@keyframes artTwinkle { 0%, 100% { opacity: 0.45; transform: scale(0.86); } 50% { opacity: 1; transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .gen-art .art-motif, .gen-art .tw { animation: none; } }
