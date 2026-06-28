@@ -109,10 +109,12 @@ function viewMaxDiff() {
   const node = mount(`
     <section class="view">
       <div class="card">
-        ${topbar(true)}
-        <div class="qhead">
-          <div class="k">Trade-off · ${state.mdIndex + 1} of ${MAXDIFF_BLOCKS.length}</div>
-          <h2>Of these four, which matters <em>most</em> to you — and which <em>least</em>?</h2>
+        <div class="stickyhead">
+          ${topbar(true)}
+          <div class="qhead">
+            <div class="k">Trade-off · ${state.mdIndex + 1} of ${MAXDIFF_BLOCKS.length}</div>
+            <h2>Of these four, which matters <em>most</em> to you — and which <em>least</em>?</h2>
+          </div>
         </div>
         <div class="md-list">${rows}</div>
         <div class="btn-row">
@@ -154,9 +156,11 @@ function viewPortrait() {
   const node = mount(`
     <section class="view">
       <div class="card">
-        ${topbar(true)}
-        <div class="qhead"><div class="k">Reflect · ${state.ptIndex + 1} of ${PORTRAIT_ITEMS.length}</div>
-          <h2 class="subq">How much is this person like you?</h2>
+        <div class="stickyhead">
+          ${topbar(true)}
+          <div class="qhead"><div class="k">Reflect · ${state.ptIndex + 1} of ${PORTRAIT_ITEMS.length}</div>
+            <h2 class="subq">How much is this person like you?</h2>
+          </div>
         </div>
         <blockquote class="quote" data-value="${item.valueId}">${item.text}</blockquote>
         <div class="scale">

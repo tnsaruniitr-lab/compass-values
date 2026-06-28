@@ -772,3 +772,33 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 :is([data-theme="linen"], [data-theme="meadow"]) .ipanel { background: var(--surface, rgba(255,255,255,0.9)); border-color: var(--line-strong); }
 
 @media (prefers-reduced-motion: reduce) { .scene-identity::before { filter: none; } }
+
+/* ==========================================================================
+   Quiz fixes — sticky question header + readable selected buttons on all themes
+   ========================================================================== */
+/* Keep the question + progress pinned while the options scroll under them. */
+.stickyhead {
+  position: sticky; top: 0; z-index: 5;
+  margin-bottom: 22px; padding: 6px 0 14px;
+  background: color-mix(in srgb, var(--bg-1) 90%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
+  backdrop-filter: blur(12px) saturate(135%);
+}
+.stickyhead .topbar { margin-bottom: 16px; }
+.stickyhead .qhead { margin-bottom: 0; }
+
+/* Fix: on light themes the selected "Least" pill had near-white text → invisible.
+   Theme both selected states per palette so the label always reads. */
+:is([data-theme="linen"], [data-theme="meadow"]) .pick button.most.on {
+  background: linear-gradient(120deg, var(--accent), color-mix(in srgb, var(--accent) 68%, var(--accent-2)));
+  color: #fff8f0; border-color: transparent;
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+:is([data-theme="linen"], [data-theme="meadow"]) .pick button.least.on {
+  background: color-mix(in srgb, var(--text) 14%, var(--surface));
+  color: var(--text); border-color: var(--control-border);
+}
+[data-theme="midnight"] .pick button.most.on {
+  background: linear-gradient(120deg, #ecd198, #d9b87a); color: #1a140a; border-color: transparent;
+  box-shadow: 0 8px 20px -8px rgba(217, 184, 122, 0.65);
+}
