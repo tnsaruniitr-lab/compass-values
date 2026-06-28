@@ -72,7 +72,9 @@ while (await page.$('.quote') && i < 40) {
   const vid = await page.$eval('.quote', (q) => q.getAttribute('data-value'))
   const val = HIGH.has(vid) ? 6 : LOW.has(vid) ? 2 : 4
   if (i === 4) { await sleep(400); await page.screenshot({ path: `${OUT}/03-portrait.png` }) }
-  await page.click(`.dotbtn[data-val="${val}"]`); await sleep(240)
+  await page.click(`.dotbtn[data-val="${val}"]`); await sleep(160)
+  const pnext = await page.$('[data-next]:not([disabled])'); if (pnext) await pnext.click() // explicit Continue
+  await sleep(220)
   i++
 }
 

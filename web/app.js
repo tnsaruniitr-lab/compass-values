@@ -117,9 +117,9 @@ function viewMaxDiff() {
           </div>
         </div>
         <div class="md-list">${rows}</div>
-        <div class="btn-row">
+        <div class="stickyfoot">
           <button class="btn" data-next ${cur.best && cur.worst ? '' : 'disabled'}>Continue →</button>
-          <span class="fine">Pick one “Most” and one “Least”.</span>
+          <span class="fine">${cur.best && cur.worst ? 'You can change a pick, or continue.' : 'Pick one “Most” and one “Least”.'}</span>
         </div>
       </div>
     </section>`)
@@ -167,18 +167,20 @@ function viewPortrait() {
           <div class="scale-ends"><span>${PORTRAIT_SCALE[0].label}</span><span>${PORTRAIT_SCALE[5].label}</span></div>
           <div class="dots">${dots}</div>
         </div>
-        <div class="btn-row">
+        <div class="stickyfoot">
+          <button class="btn" data-next ${cur ? '' : 'disabled'}>Continue →</button>
           <button class="btn ghost" data-skip>Skip</button>
-          <span class="fine">Tap a number to continue.</span>
         </div>
       </div>
     </section>`)
 
   node.querySelector('[data-back]')?.addEventListener('click', backFromPortrait)
   node.querySelectorAll('[data-val]').forEach((b) => b.addEventListener('click', () => {
+    // Tap to select (no auto-advance) — the person taps Continue when ready.
     state.pt[item.id] = Number(b.getAttribute('data-val'))
-    setTimeout(nextPortrait, 220)
+    render()
   }))
+  node.querySelector('[data-next]')?.addEventListener('click', nextPortrait)
   node.querySelector('[data-skip]')?.addEventListener('click', nextPortrait)
 }
 function nextPortrait() {
