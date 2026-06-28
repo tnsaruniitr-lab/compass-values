@@ -54,20 +54,20 @@ function viewWelcome() {
   const node = mount(`
     <section class="view">
       <div class="card">
-        <div class="eyebrow">Compass · values discovery</div>
-        <h1 class="display">What do you <em>really</em>&nbsp;value?</h1>
+        <div class="eyebrow">Compass · self-discovery</div>
+        <h1 class="display">Discover your <em>true</em>&nbsp;self</h1>
         <p class="lede">
-          Not the values you'd <i>like</i> to have — the ones you actually live by. This short
-          experience uses forced trade-offs and indirect questions, grounded in the
-          <strong>Schwartz model of basic human values</strong>, to map your real priorities and
-          the tensions between them.
+          Uncover the values you actually live by — and what they mean for the
+          <strong>career</strong> and the <strong>kind of partner</strong> that fit you best.
+          In about five minutes of honest trade-offs, Compass maps what really drives you,
+          grounded in the <strong>Schwartz model of basic human values</strong>.
         </p>
         <div class="btn-row">
           <button class="btn" data-begin>Begin →</button>
           <span class="fine">~5 minutes · ${TOTAL} quick choices</span>
         </div>
         <p class="fine" style="margin-top:26px">
-          A mirror for reflection, not a verdict or a personality “type”. Prototype items —
+          Built for honest self-reflection and grounded in research. Prototype items —
           not a clinical or validated assessment.
         </p>
       </div>

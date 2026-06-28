@@ -1,7 +1,7 @@
 {
-  "name": "Compass — Values Discovery",
+  "name": "Compass — Discover Your True Self",
   "short_name": "Compass",
-  "description": "Discover the values you really live by, based on the Schwartz circumplex of basic human values.",
+  "description": "Discover your true self — the values you really live by, and what they mean for the career and the kind of partner that fit you best. Based on the Schwartz circumplex of basic human values.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
