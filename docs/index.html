@@ -728,6 +728,65 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 :is([data-theme="linen"], [data-theme="meadow"]) .quote::before { color: var(--accent); opacity: 0.4; }
 :is([data-theme="linen"], [data-theme="meadow"]) .md-row.most { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 9%, var(--surface)); }
 
+/* ==========================================================================
+   Results upgrade — identity reveal + richer work/love panels
+   ========================================================================== */
+.scene-inner.center { text-align: center; max-width: 620px; }
+
+/* --- Scene 1: the identity reveal --- */
+.scene-identity { position: relative; }
+.scene-identity::before {
+  content: ""; position: absolute; z-index: -1; top: 14%; left: 50%;
+  width: min(620px, 92vw); height: min(620px, 92vw); transform: translateX(-50%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 32%, transparent), transparent 68%);
+  filter: blur(18px); opacity: 0.9; pointer-events: none;
+}
+.scene-identity .eyebrow { justify-content: center; }
+.scene-identity .eyebrow::before { display: none; }
+.id-pre { font-family: var(--font-display); font-style: italic; color: var(--muted); font-size: clamp(16px, 2.4vw, 20px); }
+.id-name {
+  font-family: var(--font-display); font-weight: 500; letter-spacing: -0.015em;
+  font-size: clamp(40px, 10vw, 78px); line-height: 1.04; margin: 6px 0 14px;
+  color: var(--accent); text-wrap: balance;
+}
+.id-essence { font-family: var(--font-display); font-style: italic; font-size: clamp(17px, 2.8vw, 23px); color: var(--text); }
+.id-traits { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 22px 0; }
+.id-trait {
+  font-size: 13px; padding: 6px 14px; border-radius: 99px; color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.id-portrait { color: var(--muted); font-size: clamp(15px, 2.1vw, 17px); line-height: 1.7; max-width: 52ch; margin: 0 auto; }
+
+/* --- richer work/love content panels --- */
+.panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0 6px; }
+@media (max-width: 540px) { .panel-grid { grid-template-columns: 1fr; } }
+.ipanel {
+  padding: 18px 18px 16px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--glass);
+}
+.ipanel h4 {
+  font-family: var(--font-body); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase;
+  font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+}
+.ipanel h4::before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+.ipanel.good h4 { color: var(--good); }
+.ipanel.good h4::before { background: var(--good); box-shadow: 0 0 8px var(--good); }
+.ipanel.warn h4 { color: var(--warn); }
+.ipanel.warn h4::before { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.ipanel ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.ipanel li { position: relative; padding-left: 18px; font-size: 14.5px; line-height: 1.5; color: var(--text); }
+.ipanel li::before { content: ""; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; }
+.ipanel.good li { color: var(--text); }
+
+.rolelabel { font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin: 22px 0 10px; }
+.love-summary { font-size: clamp(16px, 2.4vw, 19px); line-height: 1.6; color: var(--text); margin-top: 6px; }
+
+[data-theme="bloom"] .ipanel,
+:is([data-theme="linen"], [data-theme="meadow"]) .ipanel { background: var(--surface, rgba(255,255,255,0.9)); border-color: var(--line-strong); }
+
+@media (prefers-reduced-motion: reduce) { .scene-identity::before { filter: none; } }
+
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -1398,7 +1457,29 @@ function explainMatch(profile, archetype, valueMeta) {
   if (highDrivers.length) parts.push(`you rank ${highDrivers.map(nm).join(' and ')} highly`)
   if (lowDrivers.length) parts.push(`${lowDrivers.map(nm).join(' and ')} matters less to you`)
   const lead = parts.length ? `Because ${parts.join(', and ')}, ` : ''
-  return `${lead}${archetype.story}`
+  const story = lead ? archetype.story.charAt(0).toLowerCase() + archetype.story.slice(1) : archetype.story
+  return `${lead}${story}`
+}
+
+/**
+ * Concrete "where you fit at work" insights derived from value signals
+ * (autonomy / variety / recognition / purpose). Returns short phrases that
+ * read as a continuation of "You thrive when…" and "What drains you…".
+ * @param {{combined: Record<string, number>}} profile
+ */
+function workInsights(profile) {
+  const c = profile.combined
+  const dims = [
+    { v: (c.self_direction - c.conformity), hi: 'you set your own direction and methods', lo: 'expectations are clear and your role is well defined', hiDrain: 'being micromanaged or hemmed in by rules', loDrain: 'open-ended ambiguity with no clear brief' },
+    { v: (c.stimulation + c.hedonism - c.security), hi: 'there’s variety, novelty, and room to experiment', lo: 'there’s a calm, stable, predictable rhythm', hiDrain: 'monotony — doing the same thing every day', loDrain: 'constant upheaval and shifting goalposts' },
+    { v: (c.power + c.achievement), hi: 'achievement is visible and progress gets recognised', lo: 'the work is judged by its quality, not the ladder', hiDrain: 'effort that goes unseen or unrewarded', loDrain: 'forced competition and status games' },
+    { v: (c.benevolence + c.universalism), hi: 'the work clearly helps people or serves a cause', lo: 'you’re free to focus on the craft itself', hiDrain: 'work that feels pointless or purely self-serving', loDrain: 'heavy obligation to a cause you don’t share' },
+  ]
+  const byStrength = [...dims].sort((a, b) => Math.abs(b.v) - Math.abs(a.v))
+  return {
+    thrive: byStrength.slice(0, 3).map((d) => (d.v >= 0 ? d.hi : d.lo)),
+    drains: byStrength.slice(0, 2).map((d) => (d.v >= 0 ? d.hiDrain : d.loDrain)),
+  }
 }
 
 /**
@@ -1414,7 +1495,7 @@ function careerReport(profile, valueMeta, n = 3) {
   }))
 }
 
-return { ARCHETYPES, ARCHETYPE_BY_KEY, matchBand, rankArchetypes, explainMatch, careerReport };
+return { ARCHETYPES, ARCHETYPE_BY_KEY, matchBand, rankArchetypes, explainMatch, workInsights, careerReport };
 })();
 
 const __mod_relationshipCompass = (() => {
@@ -1553,6 +1634,51 @@ function relationshipCompass(profile) {
   })
 }
 
+/** Per-dimension "what fits you in love" phrasing — reflective, not predictive. */
+const LOVE_MAP = {
+  stability_adventure: {
+    right: { look: 'someone open to spontaneity who won’t tie you to one routine', wary: 'a partner who needs everything predictable' },
+    left: { look: 'someone who wants a settled, dependable life with you', wary: 'a partner who keeps uprooting things' },
+  },
+  independence_togetherness: {
+    right: { look: 'a partner secure enough to give you space without taking it personally', wary: 'someone who reads your independence as rejection' },
+    left: { look: 'someone who wants a closely shared, interwoven life', wary: 'a distant or avoidant partner' },
+  },
+  ambition_connection: {
+    right: { look: 'a partner who respects your drive and brings their own', wary: 'someone who’ll quietly resent your ambition' },
+    left: { look: 'a partner who puts the relationship first, the way you do', wary: 'someone who chooses status over the relationship' },
+  },
+  shared_meaning: {
+    right: { look: 'someone who shares your core worldview and sense of what matters', wary: 'deep worldview or values mismatches — name them early' },
+    left: { look: 'an easy-going partner who won’t impose a worldview on you', wary: 'a partner with rigid expectations about beliefs or tradition' },
+  },
+  caretaking: {
+    right: { look: 'a partner who returns your care rather than just receiving it', wary: 'a one-way dynamic where you give and give' },
+    left: { look: 'a partner who tends their own emotional needs', wary: 'a high-maintenance dynamic that drains you' },
+  },
+}
+
+/**
+ * "Love, your way" — a synthesized, concrete (but non-predictive) read on the
+ * partner dynamics that tend to fit you, what to look for, and what to watch.
+ * @param {{combined:Record<string,number>, higher:Record<string,number>}} profile
+ */
+function loveInsights(profile) {
+  const ranked = [...relationshipCompass(profile)].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+  const strong = ranked.filter((d) => d.side !== 'center')
+  const sideKey = (d) => (d.side === 'right' ? 'right' : 'left')
+  const lookFor = strong.slice(0, 3).map((d) => LOVE_MAP[d.key][sideKey(d)].look)
+  const beWary = strong.slice(0, 2).map((d) => LOVE_MAP[d.key][sideKey(d)].wary)
+  const summary = strong.length
+    ? `${strong[0].reflection} ${strong[1] ? strong[1].reflection : ''}`.trim()
+    : 'You bring a balanced, flexible presence to relationships — no single pull dominates how you connect.'
+  return {
+    summary,
+    lookFor: lookFor.length ? lookFor : ['a partner who meets you with openness and honesty'],
+    beWary: beWary.length ? beWary : ['drifting on autopilot without naming what you each need'],
+  }
+}
+
 /**
  * The single honest level-effect: your own self-transcendence and your own
  * relationship quality. Self-insight, NOT partner selection.
@@ -1572,10 +1698,67 @@ function relationshipSignal(profile) {
   }
 }
 
-return { DIMENSIONS, relationshipCompass, relationshipSignal };
+return { DIMENSIONS, relationshipCompass, loveInsights, relationshipSignal };
 })();
 
-const __engine = Object.assign({}, __mod_values, __mod_portraitItems, __mod_maxdiffBlocks, __mod_scoring, __mod_careerArchetypes, __mod_relationshipCompass);
+const __mod_identity = (() => {
+const { VALUE_BY_ID } = __mod_values;
+// @ts-check
+/**
+ * Identity synthesis — turns a values profile into a single, evocative "who you
+ * are" headline + portrait, so the results lead with a strong, memorable
+ * self-image before drilling into values, work, and love.
+ *
+ * Derived from the two Schwartz higher-order axes:
+ *   Openness ↔ Conservation   (how you engage life)
+ *   Self-Transcendence ↔ Self-Enhancement  (what you live for)
+ * giving a 3×3 grid of named identities, enriched with the person's own top
+ * values. Framed as a reflective portrait, not a clinical "type".
+ *
+ * @typedef {import('./values.js').ValueId} ValueId
+ */
+
+
+const T = 0.22
+
+/** key = `${openKey}|${transKey}` where open ∈ open|mid|cons, trans ∈ trans|mid|enh */
+const IDENTITY = {
+  'open|trans': { name: 'The Free Idealist', essence: 'Independent in spirit, generous in purpose.', blurb: 'You want the freedom to live by your own compass — and you point it toward something bigger than yourself. Novelty and conscience pull you forward in equal measure.' },
+  'open|mid': { name: 'The Restless Explorer', essence: 'Curious, self-directed, always reaching for what’s next.', blurb: 'Routine feels like a cage; you’re happiest discovering, creating, and choosing your own way. You’d rather try and learn than play it safe.' },
+  'open|enh': { name: 'The Bold Trailblazer', essence: 'Ambitious, original, unafraid to go first.', blurb: 'You pair a hunger to achieve with a refusal to be boxed in — you’d rather build your own path than climb someone else’s. Risk doesn’t scare you; standing still does.' },
+  'mid|trans': { name: 'The Quiet Idealist', essence: 'Caring, principled, steady in your values.', blurb: 'What matters most to you is people and fairness — you measure a life by who it helps. You don’t need the spotlight to do good.' },
+  'mid|mid': { name: 'The Balanced Navigator', essence: 'Grounded, adaptable, hard to knock off course.', blurb: 'You hold competing pulls in balance — freedom and security, self and others — without being ruled by any one. That even keel is its own quiet strength.' },
+  'mid|enh': { name: 'The Driven Achiever', essence: 'Focused, capable, set on getting there.', blurb: 'You like to succeed and to be recognised for it, and you bring real drive to what you take on. Clear goals give your days their shape.' },
+  'cons|trans': { name: 'The Loyal Guardian', essence: 'Devoted, dependable, protective of your people.', blurb: 'You build safety and care for the people and traditions you love. Loyalty and stability aren’t dull to you — they’re how you show love.' },
+  'cons|mid': { name: 'The Steady Anchor', essence: 'Reliable, rooted, the calm others lean on.', blurb: 'You value order, security, and doing things properly, and you’re the steady ground in a storm. People trust you because you keep your word.' },
+  'cons|enh': { name: 'The Determined Builder', essence: 'Disciplined, ambitious, building something that lasts.', blurb: 'You pair a drive to achieve with respect for structure — you climb deliberately and build to last. You earn your standing the solid way.' },
+}
+
+const listJoin = (xs) => (xs.length <= 1 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+
+/**
+ * @param {{higher:Record<string,number>, top:ValueId[], dominantHigher:string}} profile
+ */
+function synthesizeIdentity(profile) {
+  const open = profile.higher.openness - profile.higher.conservation
+  const trans = profile.higher.self_transcendence - profile.higher.self_enhancement
+  const ok = open > T ? 'open' : open < -T ? 'cons' : 'mid'
+  const tk = trans > T ? 'trans' : trans < -T ? 'enh' : 'mid'
+  const id = IDENTITY[`${ok}|${tk}`]
+  const traits = profile.top.map((vid) => VALUE_BY_ID[vid]?.name).filter(Boolean)
+  return {
+    name: id.name,
+    essence: id.essence,
+    portrait: `${id.blurb} At your core sit ${listJoin(traits)} — and the rest takes its cue from them.`,
+    traits,
+    accentDim: profile.dominantHigher,
+  }
+}
+
+return { synthesizeIdentity };
+})();
+
+const __engine = Object.assign({}, __mod_values, __mod_portraitItems, __mod_maxdiffBlocks, __mod_scoring, __mod_careerArchetypes, __mod_relationshipCompass, __mod_identity);
 
 /* view */
 
@@ -1852,7 +2035,7 @@ return { archetypeArt };
 })();
 
 (() => {
-const { PORTRAIT_ITEMS, PORTRAIT_SCALE, MAXDIFF_BLOCKS, VALUE_BY_ID, valueById, HIGHER_ORDER_META, HIGHER_ORDER_DEEP, HIGHER_ORDER, analyze, careerReport, relationshipCompass, relationshipSignal } = __engine;
+const { PORTRAIT_ITEMS, PORTRAIT_SCALE, MAXDIFF_BLOCKS, VALUE_BY_ID, valueById, HIGHER_ORDER_META, HIGHER_ORDER_DEEP, HIGHER_ORDER, analyze, careerReport, workInsights, relationshipCompass, relationshipSignal, loveInsights, synthesizeIdentity } = __engine;
 const { renderCircumplex } = __mod_circumplex;
 const { archetypeArt } = __mod_archetypeArt;
 // @ts-check
@@ -2049,24 +2232,31 @@ function viewResults() {
     maxdiffBlocks: MAXDIFF_BLOCKS, maxdiffChoices,
   })
 
+  const identity = synthesizeIdentity(profile)
   const career = careerReport(profile, VALUE_BY_ID, 3)
+  const work = workInsights(profile)
   const compass = relationshipCompass(profile)
+  const love = loveInsights(profile)
   const signal = relationshipSignal(profile)
   const dom = HIGHER_ORDER_META[profile.dominantHigher]
+  const idColor = hoColor(profile.dominantHigher)
+  const list = (items) => items.map((t) => `<li>${t}</li>`).join('')
 
-  /* ---- Scene 1: you (the constellation) ---- */
-  const sceneYou = `
-    <section class="scene scene-you">
-      <div class="scene-inner">
-        <div class="eyebrow">Your map</div>
-        <h2 class="scene-h" style="color:${hoColor(profile.dominantHigher)}">${dom.name}</h2>
-        <p class="scene-lede">Here's the shape of what you value — your centre of gravity and the pulls around it.</p>
-        <div class="constellation">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
+  /* ---- Scene 1: TRUE SELF — the identity reveal ---- */
+  const sceneIdentity = `
+    <section class="scene scene-identity" style="--accent:${idColor}">
+      <div class="scene-inner center">
+        <div class="eyebrow">Your true self</div>
+        <p class="id-pre">You are</p>
+        <h1 class="id-name">${identity.name}</h1>
+        <p class="id-essence">${identity.essence}</p>
+        <div class="id-traits">${identity.traits.map((t) => `<span class="id-trait">${t}</span>`).join('')}</div>
+        <p class="id-portrait">${identity.portrait}</p>
       </div>
       <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
     </section>`
 
-  /* ---- Scene 2: what drives you ---- */
+  /* ---- Scene 2: VALUES — the constellation + top drivers ---- */
   const lo = -1.6; const hi = 1.6
   const pctOf = (c) => Math.round(Math.max(0, Math.min(1, (c - lo) / (hi - lo))) * 100)
   const drivers = profile.ranked.slice(0, 3).map((id, i) => {
@@ -2081,17 +2271,18 @@ function viewResults() {
         </div>
       </div>`
   }).join('')
-  const sceneDrivers = `
-    <section class="scene">
+  const sceneValues = `
+    <section class="scene scene-values">
       <div class="scene-inner">
-        <div class="eyebrow">What drives you</div>
-        <h2 class="scene-h2">The three that rose to the top</h2>
-        <p class="scene-fine">Relative priorities — most → least important <em>to you</em>, not a score against other people.</p>
+        <div class="eyebrow">What you value</div>
+        <h2 class="scene-h2" style="color:${idColor}">Your core values</h2>
+        <p class="scene-fine">Your centre of gravity is <strong>${dom.name}</strong>. Below: the three priorities that rose to the top — relative to <em>your</em> own ranking, not other people.</p>
+        <div class="constellation">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
         <div class="drivers">${drivers}</div>
       </div>
     </section>`
 
-  /* ---- Scene 3: your work (career archetype reveal) ---- */
+  /* ---- Scene 3: WORK — the career archetype, richly answered ---- */
   const primary = career[0]
   const alsoLeans = career.slice(1, 3).filter((a) => a.band !== 'weak')
   const roles = primary.roles.map((r) => `<span class="role">${r}</span>`).join('')
@@ -2113,29 +2304,38 @@ function viewResults() {
         <h2 class="scene-h2 arch-name">${primary.name}</h2>
         <p class="arch-tag">${primary.tagline}</p>
         <p class="arch-story">${primary.reasoning}</p>
+        <div class="panel-grid">
+          <div class="ipanel good"><h4>You thrive when</h4><ul>${list(work.thrive)}</ul></div>
+          <div class="ipanel warn"><h4>What drains you</h4><ul>${list(work.drains)}</ul></div>
+        </div>
+        <p class="rolelabel">Roles that tend to fit</p>
         <div class="roles">${roles}</div>
-        <p class="anti-fit">↘ What would chafe: ${primary.antiFit}</p>
         ${alsoHtml}
-        <p class="scene-fine calib">Values point to the kind of work you'll <em>enjoy</em> — not what you'll be best <em>at</em>, and not destiny. The science links values to job satisfaction modestly; treat this as a direction worth exploring.</p>
+        <p class="scene-fine calib">Values point to the kind of work you’ll <em>enjoy</em> — not what you’ll be best <em>at</em>, and not destiny. Treat this as a direction worth exploring.</p>
       </div>
     </section>`
 
-  /* ---- Scene 4: how you love (relationship compass) ---- */
+  /* ---- Scene 4: LOVE — how you love + what fits you, richly answered ---- */
   const dims = compass.map((d) => `
     <div class="cdim">
       <div class="clabels"><span>${d.left}</span><span>${d.right}</span></div>
       <div class="ctrack"><span class="cmid"></span><span class="cknob" style="left:${knobPos(d.value)}%"></span></div>
       <p class="creflect">${d.reflection}</p>
-      <p class="ctalk">💬 ${d.talk}</p>
     </div>`).join('')
   const sceneLove = `
     <section class="scene scene-love">
       <div class="scene-inner">
         <div class="eyebrow">How you love</div>
-        <h2 class="scene-h2">Your values, in relationships</h2>
-        <p class="scene-fine">Not a “type” to find — the science says that can't be predicted. This is how <em>you</em> tend to show up, and what's worth talking about with anyone you're close to.</p>
+        <h2 class="scene-h2">Love, your way</h2>
+        <p class="love-summary">${love.summary}</p>
+        <div class="panel-grid">
+          <div class="ipanel good"><h4>Look for a partner who…</h4><ul>${list(love.lookFor)}</ul></div>
+          <div class="ipanel warn"><h4>Be wary of</h4><ul>${list(love.beWary)}</ul></div>
+        </div>
+        <p class="rolelabel">The dynamics underneath</p>
         <div class="compass">${dims}</div>
         <p class="signal">✨ ${signal.text}</p>
+        <p class="scene-fine">There’s no single “type” to find — research says compatibility can’t be predicted from values alone. This maps how <em>you</em> tend to love, so you can choose, and talk, with clear eyes.</p>
       </div>
     </section>`
 
@@ -2166,7 +2366,7 @@ function viewResults() {
       </div>
     </section>`
 
-  mount(`<div class="story">${sceneYou}${sceneDrivers}${sceneWork}${sceneLove}${sceneClose}</div>`)
+  mount(`<div class="story">${sceneIdentity}${sceneValues}${sceneWork}${sceneLove}${sceneClose}</div>`)
 
   // Try to load the AI illustration for the primary archetype; if absent, the
   // generative SVG art behind it remains (graceful, offline-friendly).

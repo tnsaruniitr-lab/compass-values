@@ -186,7 +186,29 @@ export function explainMatch(profile, archetype, valueMeta) {
   if (highDrivers.length) parts.push(`you rank ${highDrivers.map(nm).join(' and ')} highly`)
   if (lowDrivers.length) parts.push(`${lowDrivers.map(nm).join(' and ')} matters less to you`)
   const lead = parts.length ? `Because ${parts.join(', and ')}, ` : ''
-  return `${lead}${archetype.story}`
+  const story = lead ? archetype.story.charAt(0).toLowerCase() + archetype.story.slice(1) : archetype.story
+  return `${lead}${story}`
+}
+
+/**
+ * Concrete "where you fit at work" insights derived from value signals
+ * (autonomy / variety / recognition / purpose). Returns short phrases that
+ * read as a continuation of "You thrive when…" and "What drains you…".
+ * @param {{combined: Record<string, number>}} profile
+ */
+export function workInsights(profile) {
+  const c = profile.combined
+  const dims = [
+    { v: (c.self_direction - c.conformity), hi: 'you set your own direction and methods', lo: 'expectations are clear and your role is well defined', hiDrain: 'being micromanaged or hemmed in by rules', loDrain: 'open-ended ambiguity with no clear brief' },
+    { v: (c.stimulation + c.hedonism - c.security), hi: 'there’s variety, novelty, and room to experiment', lo: 'there’s a calm, stable, predictable rhythm', hiDrain: 'monotony — doing the same thing every day', loDrain: 'constant upheaval and shifting goalposts' },
+    { v: (c.power + c.achievement), hi: 'achievement is visible and progress gets recognised', lo: 'the work is judged by its quality, not the ladder', hiDrain: 'effort that goes unseen or unrewarded', loDrain: 'forced competition and status games' },
+    { v: (c.benevolence + c.universalism), hi: 'the work clearly helps people or serves a cause', lo: 'you’re free to focus on the craft itself', hiDrain: 'work that feels pointless or purely self-serving', loDrain: 'heavy obligation to a cause you don’t share' },
+  ]
+  const byStrength = [...dims].sort((a, b) => Math.abs(b.v) - Math.abs(a.v))
+  return {
+    thrive: byStrength.slice(0, 3).map((d) => (d.v >= 0 ? d.hi : d.lo)),
+    drains: byStrength.slice(0, 2).map((d) => (d.v >= 0 ? d.hiDrain : d.loDrain)),
+  }
 }
 
 /**

@@ -2,7 +2,8 @@
 import {
   PORTRAIT_ITEMS, PORTRAIT_SCALE, MAXDIFF_BLOCKS, VALUE_BY_ID, valueById,
   HIGHER_ORDER_META, HIGHER_ORDER_DEEP, HIGHER_ORDER, analyze,
-  careerReport, relationshipCompass, relationshipSignal,
+  careerReport, workInsights, relationshipCompass, relationshipSignal, loveInsights,
+  synthesizeIdentity,
 } from '../engine/index.js'
 import { renderCircumplex } from './circumplex.js'
 import { archetypeArt } from './archetypeArt.js'
@@ -196,24 +197,31 @@ function viewResults() {
     maxdiffBlocks: MAXDIFF_BLOCKS, maxdiffChoices,
   })
 
+  const identity = synthesizeIdentity(profile)
   const career = careerReport(profile, VALUE_BY_ID, 3)
+  const work = workInsights(profile)
   const compass = relationshipCompass(profile)
+  const love = loveInsights(profile)
   const signal = relationshipSignal(profile)
   const dom = HIGHER_ORDER_META[profile.dominantHigher]
+  const idColor = hoColor(profile.dominantHigher)
+  const list = (items) => items.map((t) => `<li>${t}</li>`).join('')
 
-  /* ---- Scene 1: you (the constellation) ---- */
-  const sceneYou = `
-    <section class="scene scene-you">
-      <div class="scene-inner">
-        <div class="eyebrow">Your map</div>
-        <h2 class="scene-h" style="color:${hoColor(profile.dominantHigher)}">${dom.name}</h2>
-        <p class="scene-lede">Here's the shape of what you value — your centre of gravity and the pulls around it.</p>
-        <div class="constellation">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
+  /* ---- Scene 1: TRUE SELF — the identity reveal ---- */
+  const sceneIdentity = `
+    <section class="scene scene-identity" style="--accent:${idColor}">
+      <div class="scene-inner center">
+        <div class="eyebrow">Your true self</div>
+        <p class="id-pre">You are</p>
+        <h1 class="id-name">${identity.name}</h1>
+        <p class="id-essence">${identity.essence}</p>
+        <div class="id-traits">${identity.traits.map((t) => `<span class="id-trait">${t}</span>`).join('')}</div>
+        <p class="id-portrait">${identity.portrait}</p>
       </div>
       <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
     </section>`
 
-  /* ---- Scene 2: what drives you ---- */
+  /* ---- Scene 2: VALUES — the constellation + top drivers ---- */
   const lo = -1.6; const hi = 1.6
   const pctOf = (c) => Math.round(Math.max(0, Math.min(1, (c - lo) / (hi - lo))) * 100)
   const drivers = profile.ranked.slice(0, 3).map((id, i) => {
@@ -228,17 +236,18 @@ function viewResults() {
         </div>
       </div>`
   }).join('')
-  const sceneDrivers = `
-    <section class="scene">
+  const sceneValues = `
+    <section class="scene scene-values">
       <div class="scene-inner">
-        <div class="eyebrow">What drives you</div>
-        <h2 class="scene-h2">The three that rose to the top</h2>
-        <p class="scene-fine">Relative priorities — most → least important <em>to you</em>, not a score against other people.</p>
+        <div class="eyebrow">What you value</div>
+        <h2 class="scene-h2" style="color:${idColor}">Your core values</h2>
+        <p class="scene-fine">Your centre of gravity is <strong>${dom.name}</strong>. Below: the three priorities that rose to the top — relative to <em>your</em> own ranking, not other people.</p>
+        <div class="constellation">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
         <div class="drivers">${drivers}</div>
       </div>
     </section>`
 
-  /* ---- Scene 3: your work (career archetype reveal) ---- */
+  /* ---- Scene 3: WORK — the career archetype, richly answered ---- */
   const primary = career[0]
   const alsoLeans = career.slice(1, 3).filter((a) => a.band !== 'weak')
   const roles = primary.roles.map((r) => `<span class="role">${r}</span>`).join('')
@@ -260,29 +269,38 @@ function viewResults() {
         <h2 class="scene-h2 arch-name">${primary.name}</h2>
         <p class="arch-tag">${primary.tagline}</p>
         <p class="arch-story">${primary.reasoning}</p>
+        <div class="panel-grid">
+          <div class="ipanel good"><h4>You thrive when</h4><ul>${list(work.thrive)}</ul></div>
+          <div class="ipanel warn"><h4>What drains you</h4><ul>${list(work.drains)}</ul></div>
+        </div>
+        <p class="rolelabel">Roles that tend to fit</p>
         <div class="roles">${roles}</div>
-        <p class="anti-fit">↘ What would chafe: ${primary.antiFit}</p>
         ${alsoHtml}
-        <p class="scene-fine calib">Values point to the kind of work you'll <em>enjoy</em> — not what you'll be best <em>at</em>, and not destiny. The science links values to job satisfaction modestly; treat this as a direction worth exploring.</p>
+        <p class="scene-fine calib">Values point to the kind of work you’ll <em>enjoy</em> — not what you’ll be best <em>at</em>, and not destiny. Treat this as a direction worth exploring.</p>
       </div>
     </section>`
 
-  /* ---- Scene 4: how you love (relationship compass) ---- */
+  /* ---- Scene 4: LOVE — how you love + what fits you, richly answered ---- */
   const dims = compass.map((d) => `
     <div class="cdim">
       <div class="clabels"><span>${d.left}</span><span>${d.right}</span></div>
       <div class="ctrack"><span class="cmid"></span><span class="cknob" style="left:${knobPos(d.value)}%"></span></div>
       <p class="creflect">${d.reflection}</p>
-      <p class="ctalk">💬 ${d.talk}</p>
     </div>`).join('')
   const sceneLove = `
     <section class="scene scene-love">
       <div class="scene-inner">
         <div class="eyebrow">How you love</div>
-        <h2 class="scene-h2">Your values, in relationships</h2>
-        <p class="scene-fine">Not a “type” to find — the science says that can't be predicted. This is how <em>you</em> tend to show up, and what's worth talking about with anyone you're close to.</p>
+        <h2 class="scene-h2">Love, your way</h2>
+        <p class="love-summary">${love.summary}</p>
+        <div class="panel-grid">
+          <div class="ipanel good"><h4>Look for a partner who…</h4><ul>${list(love.lookFor)}</ul></div>
+          <div class="ipanel warn"><h4>Be wary of</h4><ul>${list(love.beWary)}</ul></div>
+        </div>
+        <p class="rolelabel">The dynamics underneath</p>
         <div class="compass">${dims}</div>
         <p class="signal">✨ ${signal.text}</p>
+        <p class="scene-fine">There’s no single “type” to find — research says compatibility can’t be predicted from values alone. This maps how <em>you</em> tend to love, so you can choose, and talk, with clear eyes.</p>
       </div>
     </section>`
 
@@ -313,7 +331,7 @@ function viewResults() {
       </div>
     </section>`
 
-  mount(`<div class="story">${sceneYou}${sceneDrivers}${sceneWork}${sceneLove}${sceneClose}</div>`)
+  mount(`<div class="story">${sceneIdentity}${sceneValues}${sceneWork}${sceneLove}${sceneClose}</div>`)
 
   // Try to load the AI illustration for the primary archetype; if absent, the
   // generative SVG art behind it remains (graceful, offline-friendly).

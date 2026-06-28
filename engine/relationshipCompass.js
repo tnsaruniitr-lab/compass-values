@@ -133,6 +133,51 @@ export function relationshipCompass(profile) {
   })
 }
 
+/** Per-dimension "what fits you in love" phrasing — reflective, not predictive. */
+const LOVE_MAP = {
+  stability_adventure: {
+    right: { look: 'someone open to spontaneity who won’t tie you to one routine', wary: 'a partner who needs everything predictable' },
+    left: { look: 'someone who wants a settled, dependable life with you', wary: 'a partner who keeps uprooting things' },
+  },
+  independence_togetherness: {
+    right: { look: 'a partner secure enough to give you space without taking it personally', wary: 'someone who reads your independence as rejection' },
+    left: { look: 'someone who wants a closely shared, interwoven life', wary: 'a distant or avoidant partner' },
+  },
+  ambition_connection: {
+    right: { look: 'a partner who respects your drive and brings their own', wary: 'someone who’ll quietly resent your ambition' },
+    left: { look: 'a partner who puts the relationship first, the way you do', wary: 'someone who chooses status over the relationship' },
+  },
+  shared_meaning: {
+    right: { look: 'someone who shares your core worldview and sense of what matters', wary: 'deep worldview or values mismatches — name them early' },
+    left: { look: 'an easy-going partner who won’t impose a worldview on you', wary: 'a partner with rigid expectations about beliefs or tradition' },
+  },
+  caretaking: {
+    right: { look: 'a partner who returns your care rather than just receiving it', wary: 'a one-way dynamic where you give and give' },
+    left: { look: 'a partner who tends their own emotional needs', wary: 'a high-maintenance dynamic that drains you' },
+  },
+}
+
+/**
+ * "Love, your way" — a synthesized, concrete (but non-predictive) read on the
+ * partner dynamics that tend to fit you, what to look for, and what to watch.
+ * @param {{combined:Record<string,number>, higher:Record<string,number>}} profile
+ */
+export function loveInsights(profile) {
+  const ranked = [...relationshipCompass(profile)].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+  const strong = ranked.filter((d) => d.side !== 'center')
+  const sideKey = (d) => (d.side === 'right' ? 'right' : 'left')
+  const lookFor = strong.slice(0, 3).map((d) => LOVE_MAP[d.key][sideKey(d)].look)
+  const beWary = strong.slice(0, 2).map((d) => LOVE_MAP[d.key][sideKey(d)].wary)
+  const summary = strong.length
+    ? `${strong[0].reflection} ${strong[1] ? strong[1].reflection : ''}`.trim()
+    : 'You bring a balanced, flexible presence to relationships — no single pull dominates how you connect.'
+  return {
+    summary,
+    lookFor: lookFor.length ? lookFor : ['a partner who meets you with openness and honesty'],
+    beWary: beWary.length ? beWary : ['drifting on autopilot without naming what you each need'],
+  }
+}
+
 /**
  * The single honest level-effect: your own self-transcendence and your own
  * relationship quality. Self-insight, NOT partner selection.
