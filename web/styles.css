@@ -937,3 +937,66 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 .tut-ar { display: inline-block; font-weight: 700; padding: 0 3px; }
 .tut-ar.up { color: var(--good); }
 .tut-ar.down { color: var(--faint); }
+
+/* ==========================================================================
+   Drag-to-sort — reorder cards (top = most, bottom = least); grip initiates
+   ========================================================================== */
+.ranklbl { font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--faint); margin: 10px 2px; }
+.ranklbl-top { color: var(--good); }
+.ranklbl-bot { margin-top: 12px; }
+
+.sortlist { display: flex; flex-direction: column; gap: 10px; }
+.sortlist.is-dragging { cursor: grabbing; }
+.sortcard {
+  display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--glass);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04); user-select: none; touch-action: auto;
+  transition: box-shadow .2s ease, border-color .2s ease, background .2s ease, transform .18s ease;
+}
+.sortcard .sc-grip {
+  font-size: 19px; color: var(--faint); cursor: grab; touch-action: none; line-height: 1;
+  padding: 8px 4px; margin: -8px -2px -8px -6px; border-radius: 8px;
+}
+.sortcard .sc-grip:hover { color: var(--text); }
+.sortcard .sc-emoji { font-size: 21px; line-height: 1; }
+.sortcard .sc-text { font-size: 15px; line-height: 1.35; }
+.sortcard.dragging {
+  position: relative; z-index: 30; cursor: grabbing;
+  border-color: color-mix(in srgb, var(--c) 55%, transparent);
+  background: color-mix(in srgb, var(--c) 12%, var(--glass-2));
+  box-shadow: 0 20px 44px -14px rgba(0,0,0,.45), 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+}
+.drop-line { height: 3px; border-radius: 99px; margin: -6px 8px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+
+/* animated tutorial demo */
+.tut-demo { position: relative; height: 176px; width: 236px; margin: 0 auto 20px; }
+.tut-demo .td-lbl { position: absolute; left: 0; right: 0; text-align: center; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--faint); }
+.tut-demo .td-top { top: 0; color: var(--good); }
+.tut-demo .td-bot { bottom: 0; }
+.tut-demo .td-row {
+  position: absolute; left: 22px; right: 22px; height: 30px; border-radius: 9px;
+  background: var(--glass-2); border: 1px solid var(--line-strong); display: flex; align-items: center; gap: 8px; padding: 0 10px;
+}
+.tut-demo .td-grip { color: var(--faint); font-size: 13px; }
+.tut-demo .r1 { top: 22px; } .tut-demo .r2 { top: 58px; } .tut-demo .r3 { top: 128px; }
+.tut-demo .rdrag {
+  top: 92px; z-index: 2; border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--glass-2));
+  animation: tdDrag 3.6s ease-in-out infinite;
+}
+.tut-demo .rdrag .td-tag { margin-left: auto; font-size: 15px; }
+.tut-demo .td-finger { position: absolute; left: 48%; font-size: 22px; animation: tdFinger 3.6s ease-in-out infinite; }
+@keyframes tdDrag {
+  0%, 14% { top: 92px; transform: scale(1); box-shadow: none; }
+  26% { transform: scale(1.06); box-shadow: 0 12px 22px -8px rgba(0,0,0,.45); }
+  58% { top: 16px; transform: scale(1.06); box-shadow: 0 12px 22px -8px rgba(0,0,0,.45); }
+  70%, 100% { top: 16px; transform: scale(1); box-shadow: none; }
+}
+@keyframes tdFinger {
+  0%, 14% { top: 96px; opacity: 0; } 20% { opacity: 1; } 26% { top: 100px; }
+  58% { top: 22px; } 70% { top: 20px; opacity: 1; } 82%, 100% { top: 20px; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tut-demo .rdrag { animation: none; top: 16px; } .tut-demo .td-finger { animation: none; opacity: 0; }
+}

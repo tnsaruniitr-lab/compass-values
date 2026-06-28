@@ -1,7 +1,7 @@
 // @ts-check
 import {
   VALUES, VALUE_BY_ID, valueById,
-  HIGHER_ORDER_META, HIGHER_ORDER_DEEP, buildProfile, scoreTiers,
+  HIGHER_ORDER_META, HIGHER_ORDER_DEEP, buildProfile, scoreRanking,
   careerReport, workInsights, relationshipCompass, relationshipSignal, loveInsights,
   synthesizeIdentity,
 } from '../engine/index.js'
@@ -36,14 +36,16 @@ const hoColor = (id) => (themeMode(theme) === 'light' ? HIGHER_ORDER_DEEP[id] : 
 
 const state = {
   step: 'welcome', // welcome | sort | results
-  /** @type {Record<string,'most'|'least'|null>} */ tiers: {},
+  /** @type {string[]} */ order: [], // value ids, top = most important
+  moves: 0, // how many times the person has reordered (engagement gate)
 }
 
-const MOST_CAP = 3
-const LEAST_CAP = 3
-const SORT_TARGET = MOST_CAP + LEAST_CAP
-const tierIds = (t) => VALUES.filter((v) => state.tiers[v.id] === t).map((v) => v.id)
-const placedCount = () => Object.values(state.tiers).filter(Boolean).length
+const SORT_MIN_MOVES = 3
+const shuffle = (arr) => {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
+  return a
+}
 
 /* ------------------------------------------------------------------- helpers */
 function mount(html) {
@@ -53,12 +55,12 @@ function mount(html) {
 function go(step, patch = {}) { Object.assign(state, patch, { step }); render() }
 
 function topbar(onBack) {
-  const pct = Math.round((placedCount() / SORT_TARGET) * 100)
+  const pct = Math.round((Math.min(state.moves, SORT_MIN_MOVES) / SORT_MIN_MOVES) * 100)
   return `
     <div class="topbar">
       ${onBack ? '<button class="backlink" data-back>← Back</button>' : '<span style="width:48px"></span>'}
       <div class="progress"><i style="width:${pct}%"></i></div>
-      <span class="counter">${placedCount()} / ${SORT_TARGET}</span>
+      <span class="counter">${state.moves >= SORT_MIN_MOVES ? 'ready ✓' : 'arrange'}</span>
     </div>`
 }
 
@@ -154,55 +156,45 @@ function viewWelcome() {
         </p>
       </div>
     </section>`)
-  node.querySelector('[data-begin]').addEventListener('click', () => go('sort'))
+  node.querySelector('[data-begin]').addEventListener('click', () => go('sort', { order: shuffle(VALUES.map((v) => v.id)), moves: 0 }))
 }
 
 /* --------------------------------------------------------------------- sort */
-const TUT_KEY = 'compass-sort-tut'
+const TUT_KEY = 'compass-sort-tut2' // bumped: the interaction changed to drag
 const seenTutorial = () => { try { return !!localStorage.getItem(TUT_KEY) } catch { return false } }
 const markTutorial = () => { try { localStorage.setItem(TUT_KEY, '1') } catch {} }
 
-function sortRow(v, tier, mostFull, leastFull) {
-  const upOn = tier === 'most' ? 'on' : ''
-  const downOn = tier === 'least' ? 'on' : ''
-  const upDis = tier !== 'most' && mostFull ? 'disabled' : ''
-  const downDis = tier !== 'least' && leastFull ? 'disabled' : ''
+function sortCard(id, rank, total) {
+  const v = valueById(id)
   return `
-    <div class="sortrow tier-${tier || 'neutral'}" data-id="${v.id}" style="--c:${v.color}">
-      <span class="sr-emoji" aria-hidden="true">${VALUE_ICON[v.id] || ''}</span>
-      <span class="sr-text"><strong>${v.name}</strong><small>${v.short}</small></span>
-      <span class="sr-acts">
-        <button class="sr-up ${upOn}" data-act="most" data-id="${v.id}" ${upDis} aria-label="Matters most to me">▲</button>
-        <button class="sr-down ${downOn}" data-act="least" data-id="${v.id}" ${downDis} aria-label="Matters least to me">▼</button>
-      </span>
+    <div class="sortcard" data-id="${id}" style="--c:${v.color}" role="listitem" aria-label="${v.short}. Position ${rank + 1} of ${total}.">
+      <span class="sc-grip" aria-hidden="true" title="Drag to reorder">⠿</span>
+      <span class="sc-emoji" aria-hidden="true">${VALUE_ICON[id] || ''}</span>
+      <span class="sc-text">${v.short}</span>
     </div>`
 }
 
 function viewSort() {
-  const most = tierIds('most'); const least = tierIds('least')
-  const neutral = VALUES.filter((v) => !state.tiers[v.id]).map((v) => v.id)
-  const mostFull = most.length >= MOST_CAP; const leastFull = least.length >= LEAST_CAP
-  const canContinue = most.length >= MOST_CAP && least.length >= LEAST_CAP
-  const rowsFor = (ids) => ids.map((id) => sortRow(valueById(id), state.tiers[id] || null, mostFull, leastFull)).join('')
-
-  const mostBlock = most.length
-    ? rowsFor(most)
-    : `<div class="sort-empty">Tap ▲ to lift your most important here</div>`
-  const leastBlock = least.length
-    ? rowsFor(least)
-    : `<div class="sort-empty">Tap ▼ to drop your least important here</div>`
-
-  const hint = canContinue
-    ? 'Looks good — change anything, or continue.'
-    : `Lift <strong>${MOST_CAP}</strong> to the top and drop <strong>${LEAST_CAP}</strong> to the bottom.`
+  const ready = state.moves >= SORT_MIN_MOVES
+  const cards = state.order.map((id, i) => sortCard(id, i, state.order.length)).join('')
+  const hint = ready
+    ? 'Looks right? Fine-tune, or see your results.'
+    : 'Drag the cards — most important to the top, least to the bottom.'
 
   const tutorial = seenTutorial() ? '' : `
     <div class="tut" data-tut>
       <div class="tut-card">
-        <div class="tut-emoji">↕️</div>
-        <h3>Sort what matters</h3>
-        <p>Tap <span class="tut-ar up">▲</span> on the few values that matter <strong>most</strong> to you — they rise to the top.
-        Tap <span class="tut-ar down">▼</span> on the few that matter <strong>least</strong> — they sink down.</p>
+        <div class="tut-demo" aria-hidden="true">
+          <span class="td-lbl td-top">most ↑</span>
+          <div class="td-row r1"><span class="td-grip">⠿</span></div>
+          <div class="td-row r2"><span class="td-grip">⠿</span></div>
+          <div class="td-row rdrag"><span class="td-grip">⠿</span><span class="td-tag">🧭</span></div>
+          <div class="td-row r3"><span class="td-grip">⠿</span></div>
+          <span class="td-finger">👆</span>
+          <span class="td-lbl td-bot">least ↓</span>
+        </div>
+        <h3>Drag to sort</h3>
+        <p>Drag each card by its handle — what matters <strong>most</strong> to the <strong>top</strong>, what matters <strong>least</strong> to the <strong>bottom</strong>.</p>
         <p class="tut-fine">Don’t overthink the middle. There are no right answers.</p>
         <button class="btn" data-tut-ok>Got it →</button>
       </div>
@@ -214,20 +206,15 @@ function viewSort() {
         <div class="stickyhead">
           ${topbar(true)}
           <div class="qhead">
-            <div class="k">Sort · most ${most.length}/${MOST_CAP} · least ${least.length}/${LEAST_CAP}</div>
-            <h2>What matters <em>most</em> — and <em>least</em> — to you?</h2>
+            <div class="k">Sort your values</div>
+            <h2>Drag what matters <em>most</em> to the top</h2>
           </div>
         </div>
-        <div class="sortlist">
-          <div class="grouplbl glbl-most">▲ Matters most</div>
-          ${mostBlock}
-          <div class="grouplbl glbl-neutral">The rest — leave as you like</div>
-          ${rowsFor(neutral)}
-          <div class="grouplbl glbl-least">▼ Matters least</div>
-          ${leastBlock}
-        </div>
+        <div class="ranklbl ranklbl-top">▲ Matters most</div>
+        <div class="sortlist" data-list role="list">${cards}</div>
+        <div class="ranklbl ranklbl-bot">▼ Matters least</div>
         <div class="stickyfoot">
-          <button class="btn" data-next ${canContinue ? '' : 'disabled'}>See your results →</button>
+          <button class="btn" data-next ${ready ? '' : 'disabled'}>See your results →</button>
           <span class="fine">${hint}</span>
         </div>
       </div>
@@ -236,17 +223,76 @@ function viewSort() {
 
   node.querySelector('[data-back]')?.addEventListener('click', () => go('welcome'))
   node.querySelector('[data-tut-ok]')?.addEventListener('click', () => { markTutorial(); render() })
-  node.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
-    if (b.hasAttribute('disabled')) return
-    const id = b.getAttribute('data-id'); const act = b.getAttribute('data-act')
-    const cur = state.tiers[id] || null
-    const next = cur === act ? null : act // tap same tier again to unset
-    state.tiers = { ...state.tiers, [id]: next }
-    const rect = b.getBoundingClientRect()
-    render()
-    if (next === 'most') spark(rect, id, 'embrace')
-  }))
-  node.querySelector('[data-next]')?.addEventListener('click', () => { if (canContinue) go('results') })
+  node.querySelector('[data-next]')?.addEventListener('click', () => { if (state.moves >= SORT_MIN_MOVES) go('results') })
+  wireDragSort(node.querySelector('[data-list]'))
+}
+
+/** Pointer-based drag-to-reorder (grip handle initiates; body still scrolls). */
+function wireDragSort(list) {
+  if (!list) return
+  let drag = null; let dir = 0; let raf = 0
+  const cards = () => Array.from(list.querySelectorAll('.sortcard'))
+  const ensureLine = () => list.querySelector('.drop-line') || Object.assign(document.createElement('div'), { className: 'drop-line' })
+
+  const indexAt = (y, exclude) => {
+    const others = cards().filter((c) => c !== exclude)
+    for (let i = 0; i < others.length; i++) {
+      const r = others[i].getBoundingClientRect()
+      if (y < r.top + r.height / 2) return { idx: i, ref: others[i] }
+    }
+    return { idx: others.length, ref: null }
+  }
+
+  const apply = (y) => {
+    drag.card.style.transform = `translateY(${y - drag.startY}px) scale(1.03)`
+    const { ref } = indexAt(y, drag.card)
+    const line = ensureLine()
+    if (ref) list.insertBefore(line, ref); else list.appendChild(line)
+    const top = 116; const bot = window.innerHeight - 124
+    dir = y < top ? -1 : y > bot ? 1 : 0
+    if (dir && !raf) raf = requestAnimationFrame(tick)
+  }
+
+  const tick = () => {
+    if (!drag || !dir) { raf = 0; return }
+    const before = window.scrollY
+    window.scrollBy(0, dir * 11)
+    drag.startY -= (window.scrollY - before) // keep card glued to the finger while scrolling
+    apply(drag.lastY)
+    raf = requestAnimationFrame(tick)
+  }
+
+  list.addEventListener('pointerdown', (e) => {
+    const grip = e.target.closest('.sc-grip'); if (!grip || e.button === 2) return
+    const card = grip.closest('.sortcard'); if (!card) return
+    e.preventDefault()
+    try { card.setPointerCapture(e.pointerId) } catch {}
+    drag = { card, id: card.dataset.id, startY: e.clientY, lastY: e.clientY, moved: false }
+    card.classList.add('dragging'); list.classList.add('is-dragging')
+  })
+  list.addEventListener('pointermove', (e) => {
+    if (!drag) return
+    drag.lastY = e.clientY
+    if (Math.abs(e.clientY - drag.startY) > 4) drag.moved = true
+    apply(e.clientY)
+  })
+  const end = () => {
+    if (!drag) return
+    dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0 }
+    const d = drag; drag = null
+    const line = list.querySelector('.drop-line')
+    d.card.classList.remove('dragging'); d.card.style.transform = ''; list.classList.remove('is-dragging')
+    if (d.moved) {
+      const { idx } = indexAt(d.lastY, d.card)
+      if (line) line.remove()
+      const ids = cards().filter((c) => c !== d.card).map((c) => c.dataset.id)
+      ids.splice(Math.max(0, Math.min(ids.length, idx)), 0, d.id)
+      state.order = ids; state.moves += 1
+      render()
+    } else if (line) { line.remove() }
+  }
+  list.addEventListener('pointerup', end)
+  list.addEventListener('pointercancel', end)
 }
 
 /* ------------------------------------------------------------------- results */
@@ -254,7 +300,7 @@ function viewSort() {
 const knobPos = (v, scale = 22) => 50 + Math.max(-46, Math.min(46, v * scale))
 
 function viewResults() {
-  const profile = buildProfile({ tiers: scoreTiers(state.tiers) })
+  const profile = buildProfile({ tiers: scoreRanking(state.order) })
 
   const identity = synthesizeIdentity(profile)
   const career = careerReport(profile, VALUE_BY_ID, 3)
@@ -402,7 +448,7 @@ function viewResults() {
     img.setAttribute('src', src)
   })
   root.querySelector('[data-restart]').addEventListener('click', () =>
-    go('welcome', { tiers: {} }))
+    go('welcome', { order: [], moves: 0 }))
 }
 
 /* -------------------------------------------------------------------- render */

@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   VALUE_IDS, PORTRAIT_ITEMS, MAXDIFF_BLOCKS, OPPOSING_PAIRS,
-  scorePortrait, scoreMaxDiff, scoreTiers, buildProfile, analyze, quadrantForAngle, valueById,
+  scorePortrait, scoreMaxDiff, scoreTiers, scoreRanking, buildProfile, analyze, quadrantForAngle, valueById,
 } from '../engine/index.js'
 import { makeRespondent, ARCHETYPES } from '../demo/synthetic.js'
 
@@ -14,6 +14,19 @@ test('scoreTiers: most=+1, least=−1, neutral=0; answered counts placements', (
   assert.equal(scores.power, -1)
   assert.equal(scores.security, 0)
   assert.equal(answered, 3)
+})
+
+test('scoreRanking: top of the order scores highest, bottom lowest', () => {
+  const order = ['benevolence', 'universalism', 'self_direction', 'stimulation', 'hedonism',
+    'security', 'conformity', 'tradition', 'achievement', 'power']
+  const { scores, answered } = scoreRanking(order)
+  assert.equal(answered, 10)
+  assert.ok(Math.abs(scores.benevolence - 1) < 1e-9, 'top = +1')
+  assert.ok(Math.abs(scores.power + 1) < 1e-9, 'bottom = −1')
+  assert.ok(scores.benevolence > scores.security && scores.security > scores.power)
+  const profile = buildProfile({ tiers: scoreRanking(order) })
+  assert.equal(profile.top[0], 'benevolence')
+  assert.equal(profile.dominantHigher, 'self_transcendence')
 })
 
 test('buildProfile from a tier sort ranks most→least and finds the right quadrant', () => {

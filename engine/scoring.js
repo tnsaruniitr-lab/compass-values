@@ -99,6 +99,20 @@ export function scoreTiers(assign = {}) {
   return { scores, answered }
 }
 
+/**
+ * Score a full drag-ranking: an ordered list of value ids, top = most
+ * important → bottom = least. Maps position to a score from +1 (top) to −1
+ * (bottom). Returned in the tier-signal shape so it feeds buildProfile.
+ * @param {string[]} orderedIds
+ */
+export function scoreRanking(orderedIds = []) {
+  /** @type {Record<string, number>} */ const scores = {}
+  for (const id of VALUE_IDS) scores[id] = 0
+  const n = orderedIds.length
+  orderedIds.forEach((id, i) => { scores[id] = n > 1 ? 1 - (2 * i) / (n - 1) : 0 })
+  return { scores, answered: n }
+}
+
 /* ------------------------------ profile builder ---------------------------- */
 /**
  * @param {{portrait?: ReturnType<typeof scorePortrait>|null, maxdiff?: ReturnType<typeof scoreMaxDiff>|null, tiers?: ReturnType<typeof scoreTiers>|null}} signals

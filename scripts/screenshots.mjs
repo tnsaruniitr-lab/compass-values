@@ -51,14 +51,17 @@ await page.waitForSelector('.sortlist'); await sleep(400)
 // Dismiss the first-time tutorial if present.
 const tut = await page.$('[data-tut-ok]'); if (tut) { await tut.click(); await sleep(300) }
 
-// Lift 3 "most" and drop 3 "least".
-for (const id of ['self_direction', 'universalism', 'benevolence']) {
-  await page.click(`.sr-up[data-id="${id}"]`); await sleep(220)
+// Drag the bottom card up to the top a few times (engages the sort).
+async function dragLastToTop() {
+  const cards = await page.$$('.sortcard')
+  const grip = await cards[cards.length - 1].$('.sc-grip'); const gb = await grip.boundingBox()
+  const fb = await (await page.$$('.sortcard'))[0].boundingBox()
+  await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2)
+  await page.mouse.down()
+  for (let s = 1; s <= 12; s++) { await page.mouse.move(gb.x + gb.width / 2, gb.y - (gb.y - (fb.y - 6)) * s / 12); await sleep(16) }
+  await page.mouse.up(); await sleep(250)
 }
-for (const id of ['power', 'achievement', 'tradition']) {
-  await page.click(`.sr-down[data-id="${id}"]`); await sleep(220)
-}
-await sleep(300)
+await dragLastToTop(); await dragLastToTop(); await dragLastToTop()
 await page.screenshot({ path: `${OUT}/02-sort.png` })
 const next = await page.$('[data-next]:not([disabled])'); if (next) await next.click()
 
