@@ -945,29 +945,33 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 .ranklbl-top { color: var(--good); }
 .ranklbl-bot { margin-top: 12px; }
 
-.sortlist { display: flex; flex-direction: column; gap: 10px; }
+.sortlist { display: flex; flex-direction: column; gap: 10px; user-select: none; -webkit-user-select: none; }
 .sortlist.is-dragging { cursor: grabbing; }
 .sortcard {
   display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 12px;
   padding: 14px 16px; border-radius: var(--r-md);
   border: 1px solid var(--line); background: var(--glass);
-  box-shadow: 0 1px 2px rgba(0,0,0,.04); user-select: none; touch-action: auto;
-  transition: box-shadow .2s ease, border-color .2s ease, background .2s ease, transform .18s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  cursor: grab; touch-action: none; /* whole card draggable; no native scroll/zoom hijack */
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
 }
-.sortcard .sc-grip {
-  font-size: 19px; color: var(--faint); cursor: grab; touch-action: none; line-height: 1;
-  padding: 8px 4px; margin: -8px -2px -8px -6px; border-radius: 8px;
-}
-.sortcard .sc-grip:hover { color: var(--text); }
+.sortcard:active { cursor: grabbing; }
+.sortcard .sc-grip { font-size: 19px; color: var(--faint); line-height: 1; }
 .sortcard .sc-emoji { font-size: 21px; line-height: 1; }
 .sortcard .sc-text { font-size: 15px; line-height: 1.35; }
 .sortcard.dragging {
-  position: relative; z-index: 30; cursor: grabbing;
+  position: relative; z-index: 30; cursor: grabbing; transition: none; will-change: transform;
   border-color: color-mix(in srgb, var(--c) 55%, transparent);
-  background: color-mix(in srgb, var(--c) 12%, var(--glass-2));
+  background: color-mix(in srgb, var(--c) 14%, var(--glass-2));
   box-shadow: 0 20px 44px -14px rgba(0,0,0,.45), 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
 }
-.drop-line { height: 3px; border-radius: 99px; margin: -6px 8px; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+/* absolutely-positioned drop indicator — moving it never reflows the cards */
+.drop-line {
+  position: absolute; left: 0; right: 0; height: 3px; margin-top: -7px; border-radius: 99px;
+  background: var(--accent); box-shadow: 0 0 10px var(--accent); pointer-events: none; z-index: 6;
+  transition: top .07s ease;
+}
 
 /* animated tutorial demo */
 .tut-demo { position: relative; height: 176px; width: 236px; margin: 0 auto 20px; }

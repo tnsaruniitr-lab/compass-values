@@ -240,69 +240,71 @@ function viewSort() {
   wireDragSort(node.querySelector('[data-list]'))
 }
 
-/** Pointer-based drag-to-reorder (grip handle initiates; body still scrolls). */
+/**
+ * Pointer drag-to-reorder. Whole card is draggable. Rects are cached once on
+ * grab (no per-move layout reads); the drop indicator is absolutely positioned
+ * (no reflow); the dragged card uses translate3d with the CSS transition
+ * disabled — so it tracks the finger 1:1 with no lag, and text never selects.
+ */
 function wireDragSort(list) {
   if (!list) return
+  list.style.position = 'relative'
   let drag = null; let dir = 0; let raf = 0
-  const cards = () => Array.from(list.querySelectorAll('.sortcard'))
-  const ensureLine = () => list.querySelector('.drop-line') || Object.assign(document.createElement('div'), { className: 'drop-line' })
 
-  const indexAt = (y, exclude) => {
-    const others = cards().filter((c) => c !== exclude)
-    for (let i = 0; i < others.length; i++) {
-      const r = others[i].getBoundingClientRect()
-      if (y < r.top + r.height / 2) return { idx: i, ref: others[i] }
-    }
-    return { idx: others.length, ref: null }
+  const computeIdx = (clientY) => {
+    const pageY = clientY + window.scrollY
+    let i = 0
+    while (i < drag.mids.length && pageY > drag.mids[i]) i++
+    return i
   }
 
-  const apply = (y) => {
-    drag.card.style.transform = `translateY(${y - drag.startY}px) scale(1.03)`
-    const { ref } = indexAt(y, drag.card)
-    const line = ensureLine()
-    if (ref) list.insertBefore(line, ref); else list.appendChild(line)
-    const top = 116; const bot = window.innerHeight - 124
-    dir = y < top ? -1 : y > bot ? 1 : 0
+  const paint = (clientY) => {
+    drag.lastY = clientY
+    const pageY = clientY + window.scrollY
+    drag.card.style.transform = `translate3d(0, ${(pageY - drag.startPageY).toFixed(1)}px, 0) scale(1.03)`
+    const i = computeIdx(clientY)
+    if (i !== drag.idx) { drag.idx = i; drag.line.style.top = `${drag.slots[i]}px` }
+    const top = 118; const bot = window.innerHeight - 126
+    dir = clientY < top ? -1 : clientY > bot ? 1 : 0
     if (dir && !raf) raf = requestAnimationFrame(tick)
   }
 
   const tick = () => {
     if (!drag || !dir) { raf = 0; return }
-    const before = window.scrollY
-    window.scrollBy(0, dir * 11)
-    drag.startY -= (window.scrollY - before) // keep card glued to the finger while scrolling
-    apply(drag.lastY)
+    window.scrollBy(0, dir * 12)
+    paint(drag.lastY) // pageY shifts with scroll → card stays glued, indicator stays correct
     raf = requestAnimationFrame(tick)
   }
 
   list.addEventListener('pointerdown', (e) => {
-    const grip = e.target.closest('.sc-grip'); if (!grip || e.button === 2) return
-    const card = grip.closest('.sortcard'); if (!card) return
+    const card = e.target.closest('.sortcard'); if (!card || e.button === 2) return
     e.preventDefault()
-    try { card.setPointerCapture(e.pointerId) } catch {}
-    drag = { card, id: card.dataset.id, startY: e.clientY, lastY: e.clientY, moved: false }
+    try { window.getSelection().removeAllRanges() } catch {}
+    const others = Array.from(list.querySelectorAll('.sortcard')).filter((c) => c !== card)
+    const mids = others.map((c) => { const r = c.getBoundingClientRect(); return r.top + window.scrollY + r.height / 2 })
+    const slots = others.map((c) => c.offsetTop)
+    slots.push(others.length ? others[others.length - 1].offsetTop + others[others.length - 1].offsetHeight : 0)
+    const line = document.createElement('div'); line.className = 'drop-line'; list.appendChild(line)
+    drag = { card, others, mids, slots, line, startPageY: e.clientY + window.scrollY, lastY: e.clientY, idx: -1 }
     card.classList.add('dragging'); list.classList.add('is-dragging')
+    try { card.setPointerCapture(e.pointerId) } catch {}
+    paint(e.clientY)
   })
-  list.addEventListener('pointermove', (e) => {
-    if (!drag) return
-    drag.lastY = e.clientY
-    if (Math.abs(e.clientY - drag.startY) > 4) drag.moved = true
-    apply(e.clientY)
-  })
+  list.addEventListener('pointermove', (e) => { if (drag) paint(e.clientY) })
+
   const end = () => {
     if (!drag) return
     dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0 }
     const d = drag; drag = null
-    const line = list.querySelector('.drop-line')
     d.card.classList.remove('dragging'); d.card.style.transform = ''; list.classList.remove('is-dragging')
-    if (d.moved) {
-      const { idx } = indexAt(d.lastY, d.card)
-      if (line) line.remove()
-      const ids = cards().filter((c) => c !== d.card).map((c) => c.dataset.id)
-      ids.splice(Math.max(0, Math.min(ids.length, idx)), 0, d.id)
+    d.line.remove()
+    const moved = Math.abs(d.lastY + window.scrollY - d.startPageY) > 6
+    if (moved) {
+      const ids = d.others.map((c) => c.dataset.id)
+      ids.splice(Math.max(0, Math.min(ids.length, d.idx)), 0, d.card.dataset.id)
       state.rounds[state.roundIndex] = ids; state.moves += 1
       render()
-    } else if (line) { line.remove() }
+    }
   }
   list.addEventListener('pointerup', end)
   list.addEventListener('pointercancel', end)
