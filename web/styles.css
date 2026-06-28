@@ -842,3 +842,33 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
   background: linear-gradient(140deg, #ecd198, #d9b87a); color: #1a140a; border-color: transparent;
   box-shadow: 0 12px 28px -10px rgba(217, 184, 122, 0.6);
 }
+
+/* ==========================================================================
+   Spark micro-feedback — value icon + a popping, fading, relevant toast
+   ========================================================================== */
+.md-row .vemoji { font-size: 19px; line-height: 1; margin-right: 8px; vertical-align: middle; }
+.md-row .dot { width: 7px; height: 7px; }
+
+.spark-toast {
+  position: fixed; z-index: 60; pointer-events: none; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 15px; border-radius: 999px;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  background: color-mix(in srgb, var(--bg-1) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+  box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--c) 55%, transparent);
+  -webkit-backdrop-filter: blur(8px) saturate(140%); backdrop-filter: blur(8px) saturate(140%);
+  opacity: 0; transform: translate(-50%, -10px) scale(0.9);
+  transition: opacity .26s ease, transform .5s cubic-bezier(.2,.9,.3,1.25);
+}
+.spark-toast .spark-ic { font-size: 17px; }
+.spark-toast.show { opacity: 1; transform: translate(-50%, -54px) scale(1); }
+.spark-toast.gone { opacity: 0; transform: translate(-50%, -92px) scale(0.96); }
+
+.spark-dot { position: fixed; width: 9px; height: 9px; border-radius: 50%; z-index: 59; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spark-toast { transition: opacity .2s ease; transform: translate(-50%, -46px); }
+  .spark-toast.show { opacity: 1; transform: translate(-50%, -46px); }
+  .spark-toast.gone { opacity: 0; transform: translate(-50%, -46px); }
+}

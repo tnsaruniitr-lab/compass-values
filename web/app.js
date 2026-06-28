@@ -62,6 +62,75 @@ function topbar(onBack) {
     </div>`
 }
 
+/* ----------------------------------------------------- micro-feedback (spark) */
+/** A relevant emoji per value — small illustrations that bring the items alive. */
+const VALUE_ICON = {
+  self_direction: '🧭', stimulation: '⚡', hedonism: '🍒', achievement: '🏆',
+  power: '👑', security: '🛡️', conformity: '🤝', tradition: '🕯️',
+  benevolence: '💞', universalism: '🌍',
+}
+/** Short, warm one-liners per value — randomised so it feels different each time. */
+const SPARK_LINES = {
+  self_direction: ['Your own path it is.', 'Freedom, noted.', 'You steer your life.'],
+  stimulation: ['Bring on the new.', 'Adventure calls.', 'Never a dull moment.'],
+  hedonism: ['Joy matters.', 'Savour it.', 'Life’s pleasures — yes.'],
+  achievement: ['Go get it.', 'You aim high.', 'Excellence, noted.'],
+  power: ['You take the lead.', 'Influence, noted.', 'You shape things.'],
+  security: ['Safe and steady.', 'Solid ground.', 'Stability matters.'],
+  conformity: ['Harmony, noted.', 'You value the “we”.', 'Belonging matters.'],
+  tradition: ['Roots run deep.', 'Honouring what came before.', 'Heritage matters.'],
+  benevolence: ['Care, first.', 'Your people matter.', 'A caring heart.'],
+  universalism: ['For everyone.', 'A fairer world.', 'Big-hearted, that.'],
+}
+const LOW_LINES = ['Not so much, noted.', 'Less your thing.', 'Fair enough.']
+const MID_LINES = ['Noted.', 'Got it.', 'Mm-hm.']
+const pickOne = (a) => a[Math.floor(Math.random() * a.length)]
+const prefersReduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** Pop a small, value-relevant toast (+ particle burst) at a point, then fade. */
+function spark(rect, valueId, tone = 'embrace') {
+  if (!rect) return
+  const v = valueById(valueId)
+  const color = (v && v.color) || '#a78bfa'
+  const icon = VALUE_ICON[valueId] || '✨'
+  const msg = tone === 'low' ? pickOne(LOW_LINES)
+    : tone === 'mid' ? pickOne(MID_LINES)
+      : pickOne(SPARK_LINES[valueId] || MID_LINES)
+  const cx = Math.max(72, Math.min(window.innerWidth - 72, rect.left + rect.width / 2))
+  const cy = rect.top
+
+  const toast = document.createElement('div')
+  toast.className = 'spark-toast'
+  toast.style.left = `${cx}px`
+  toast.style.top = `${cy}px`
+  toast.style.setProperty('--c', color)
+  toast.innerHTML = `<span class="spark-ic">${icon}</span><span>${msg}</span>`
+  document.body.appendChild(toast)
+
+  if (!prefersReduced()) burst(cx, cy, color)
+  requestAnimationFrame(() => toast.classList.add('show'))
+  setTimeout(() => { toast.classList.remove('show'); toast.classList.add('gone') }, 1150)
+  setTimeout(() => toast.remove(), 1650)
+}
+
+/** A confetti-like burst of colour-matched dots from a point. */
+function burst(cx, cy, color) {
+  for (let i = 0; i < 11; i++) {
+    const d = document.createElement('div')
+    d.className = 'spark-dot'
+    d.style.left = `${cx}px`; d.style.top = `${cy}px`; d.style.background = color
+    document.body.appendChild(d)
+    const ang = Math.random() * Math.PI * 2
+    const dist = 26 + Math.random() * 56
+    const dx = (Math.cos(ang) * dist).toFixed(1)
+    const dy = (Math.sin(ang) * dist - 12).toFixed(1)
+    d.animate([
+      { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0)`, opacity: 0 },
+    ], { duration: 560 + Math.random() * 340, easing: 'cubic-bezier(.2,.7,.3,1)' }).onfinish = () => d.remove()
+  }
+}
+
 /* ------------------------------------------------------------------- welcome */
 function viewWelcome() {
   const node = mount(`
@@ -98,7 +167,7 @@ function viewMaxDiff() {
     const cls = cur.best === id ? 'most' : cur.worst === id ? 'least' : ''
     return `
       <div class="md-row ${cls}" data-id="${id}">
-        <span class="label"><span class="dot" style="color:${v.color}"></span><span class="txt">${v.short}</span></span>
+        <span class="label"><span class="vemoji" aria-hidden="true">${VALUE_ICON[id] || ''}</span><span class="dot" style="color:${v.color}"></span><span class="txt">${v.short}</span></span>
         <span class="pick">
           <button class="most ${cur.best === id ? 'on' : ''}" data-pick="best" data-id="${id}">Most</button>
           <button class="least ${cur.worst === id ? 'on' : ''}" data-pick="worst" data-id="${id}">Least</button>
@@ -131,8 +200,11 @@ function viewMaxDiff() {
     if (kind === 'best') { c.best = c.best === id ? null : id; if (c.worst === id) c.worst = null }
     else { c.worst = c.worst === id ? null : id; if (c.best === id) c.best = null }
     state.md[block.id] = c
+    const rect = b.getBoundingClientRect()
+    const justEmbraced = kind === 'best' && c.best === id
     // No auto-advance: let the person review/change their picks, then tap Continue.
     render()
+    if (justEmbraced) spark(rect, id, 'embrace')
   }))
   node.querySelector('[data-next]')?.addEventListener('click', nextMaxDiff)
 }
@@ -177,8 +249,11 @@ function viewPortrait() {
   node.querySelector('[data-back]')?.addEventListener('click', backFromPortrait)
   node.querySelectorAll('[data-val]').forEach((b) => b.addEventListener('click', () => {
     // Tap to select (no auto-advance) — the person taps Continue when ready.
-    state.pt[item.id] = Number(b.getAttribute('data-val'))
+    const val = Number(b.getAttribute('data-val'))
+    state.pt[item.id] = val
+    const rect = b.getBoundingClientRect()
     render()
+    spark(rect, item.valueId, val >= 5 ? 'high' : val <= 2 ? 'low' : 'mid')
   }))
   node.querySelector('[data-next]')?.addEventListener('click', nextPortrait)
   node.querySelector('[data-skip]')?.addEventListener('click', nextPortrait)
@@ -360,8 +435,12 @@ function render() {
   else if (state.step === 'results') viewResults()
   // Enable gentle scene-by-scene scroll-snap only on the results story.
   document.body.dataset.view = state.step === 'results' ? 'story' : 'flow'
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  // Scroll to top only when a NEW question/step appears — not on every
+  // selection re-render (so picking an option doesn't yank the page up).
+  const key = `${state.step}:${state.mdIndex}:${state.ptIndex}`
+  if (key !== lastViewKey) { window.scrollTo({ top: 0, behavior: 'smooth' }); lastViewKey = key }
 }
+let lastViewKey = null
 
 // Apply the saved theme and wire the switcher (lives outside #app, so it
 // persists across re-renders). Re-render on change so the SVG palette updates.
