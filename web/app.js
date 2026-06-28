@@ -314,6 +314,22 @@ function wireDragSort(list) {
 /** Map a signed lean (~ z-score range) to a 2–98% knob position. */
 const knobPos = (v, scale = 22) => 50 + Math.max(-46, Math.min(46, v * scale))
 
+/** Top-3 values as a % composition (a "mix"), normalised to total 100. */
+function valuesMix(profile) {
+  const top = profile.ranked.slice(0, 3)
+  const zs = top.map((id) => profile.combined[id])
+  const min = Math.min(...zs)
+  const w = zs.map((z) => (z - min) + 0.35) // small floor: keeps the 3rd > 0% but lets the mix spread
+  const sum = w.reduce((a, b) => a + b, 0) || 1
+  const pcts = w.map((x) => Math.round((x / sum) * 100)).sort((a, b) => b - a) // descending
+  const diff = 100 - pcts.reduce((a, b) => a + b, 0) // total exactly 100, preserving order:
+  if (diff >= 0) pcts[0] += diff // surplus → onto the largest
+  else pcts[pcts.length - 1] += diff // deficit → off the smallest
+  // `top` is already ordered by rank (strongest first), so the biggest % lines up
+  // with the top value — keeping "Mostly X" consistent with the bar.
+  return top.map((id, i) => ({ id, name: valueById(id).name, color: valueById(id).color, pct: pcts[i] }))
+}
+
 function viewResults() {
   // Combine the two rounds: each value scored by its within-round rank.
   const s1 = scoreRanking(state.rounds[0]).scores
@@ -332,7 +348,10 @@ function viewResults() {
   const idColor = hoColor(profile.dominantHigher)
   const list = (items) => items.map((t) => `<li>${t}</li>`).join('')
 
-  /* ---- Scene 1: TRUE SELF — the identity reveal ---- */
+  /* ---- Scene 1: TRUE SELF — the identity reveal + values mix ---- */
+  const mix = valuesMix(profile)
+  const mixBar = `<div class="mixbar">${mix.map((m) => `<span class="mixseg" style="width:${m.pct}%;background:${m.color}"></span>`).join('')}</div>`
+  const mixLegend = `<div class="mixlegend">${mix.map((m) => `<span class="mixleg"><span class="mixdot" style="background:${m.color}"></span>${m.name} <b>${m.pct}%</b></span>`).join('')}</div>`
   const sceneIdentity = `
     <section class="scene scene-identity" style="--accent:${idColor}">
       <div class="scene-inner center">
@@ -340,7 +359,9 @@ function viewResults() {
         <p class="id-pre">You are</p>
         <h1 class="id-name">${identity.name}</h1>
         <p class="id-essence">${identity.essence}</p>
-        <div class="id-traits">${identity.traits.map((t) => `<span class="id-trait">${t}</span>`).join('')}</div>
+        <p class="id-mixline">Mostly <strong>${mix[0].name}</strong>, with <strong>${mix[1].name}</strong> and a touch of <strong>${mix[2].name}</strong>.</p>
+        ${mixBar}
+        ${mixLegend}
         <p class="id-portrait">${identity.portrait}</p>
       </div>
       <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
