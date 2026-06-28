@@ -5,6 +5,7 @@
   "type": "module",
   "description": "A research-grounded app that helps people discover their real values (Schwartz circumplex). MVP engine + web UI.",
   "scripts": {
+    "start": "node web/serve.js",
     "test": "node --test",
     "demo": "node demo/demo.js",
     "serve": "node web/serve.js",
