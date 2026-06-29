@@ -2601,6 +2601,18 @@ function viewSort() {
   wireDragSort(node.querySelector('[data-list]'))
 }
 
+/** Update the sort footer/progress in place after a drop (no full re-render). */
+function updateSortChrome() {
+  const ready = state.moves >= ROUND_MIN_MOVES
+  const lastRound = state.roundIndex >= state.rounds.length - 1
+  const next = root.querySelector('[data-next]')
+  if (next) { next.disabled = !ready; next.textContent = lastRound ? 'See your results →' : 'Next round →' }
+  const hint = root.querySelector('.stickyfoot .fine')
+  if (hint) hint.textContent = ready ? 'Looks right? Fine-tune, or move on.' : 'Drag what matters most to the top, least to the bottom.'
+  const bar = root.querySelector('.progress > i')
+  if (bar) bar.style.width = `${Math.round(((state.roundIndex + Math.min(state.moves, ROUND_MIN_MOVES) / ROUND_MIN_MOVES) / 2) * 100)}%`
+}
+
 /**
  * Pointer drag-to-reorder with LIVE displacement: the dragged card (translucent)
  * tracks the finger 1:1; the other cards smoothly shift to open a gap where it
@@ -2671,17 +2683,34 @@ function wireDragSort(list) {
     if (!drag) return
     dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0 }
     const d = drag; drag = null
-    d.card.classList.remove('dragging'); d.card.style.transform = ''
-    d.meta.forEach((m) => { m.el.style.transform = '' })
-    list.classList.remove('is-dragging')
+    const c = d.idx < 0 ? d.origIdx : d.idx
     const moved = Math.abs(d.lastY + window.scrollY - d.startPageY) > 6
+    const order = d.meta.map((m) => m.i).filter((i) => i !== d.origIdx)
+    order.splice(Math.max(0, Math.min(order.length, c)), 0, d.origIdx)
+
+    // FLIP settle: record current positions → reorder the DOM in place + clear
+    // transforms → animate each card from where it was to its final slot. No
+    // re-render (no innerHTML rebuild), so there's no blip/reload on drop.
+    const firsts = d.meta.map((m) => ({ el: m.el, top: m.el.getBoundingClientRect().top }))
+    d.card.classList.remove('dragging'); list.classList.remove('is-dragging')
+    for (const i of order) { d.meta[i].el.style.transform = ''; list.appendChild(d.meta[i].el) }
+    for (const f of firsts) {
+      const dy = f.top - f.el.getBoundingClientRect().top
+      if (dy) { f.el.style.transition = 'none'; f.el.style.transform = `translateY(${dy.toFixed(1)}px)` }
+    }
+    requestAnimationFrame(() => {
+      for (const f of firsts) {
+        if (!f.el.style.transform) continue
+        f.el.style.transition = 'transform .18s cubic-bezier(.2,.7,.3,1)'
+        f.el.style.transform = ''
+      }
+      setTimeout(() => { for (const f of firsts) f.el.style.transition = '' }, 220)
+    })
+
     if (moved) {
-      const c = d.idx < 0 ? d.origIdx : d.idx
-      const order = d.meta.map((m) => m.i).filter((i) => i !== d.origIdx)
-      order.splice(Math.max(0, Math.min(order.length, c)), 0, d.origIdx)
       state.rounds[state.roundIndex] = order.map((i) => d.meta[i].el.dataset.id)
       state.moves += 1
-      render()
+      updateSortChrome()
     }
   }
   list.addEventListener('pointerup', end)
