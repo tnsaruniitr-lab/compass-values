@@ -10,6 +10,12 @@ import { archetypeArt } from './archetypeArt.js'
 
 const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
+// Bump this every deploy — shown on the welcome screen so you can verify which
+// build is actually live (helps tell deploy/CDN/service-worker staleness apart).
+const BUILD = 'b9 · smooth-drag'
+try { console.info('%cCompass ' + BUILD, 'color:#5eead4;font-weight:600') } catch {}
+try { document.documentElement.dataset.build = BUILD } catch {}
+
 /* ------------------------------------------------------------------- theming */
 /** Selectable themes: label (dropdown), browser chrome bar colour, light/dark mode. */
 const THEMES = {
@@ -155,7 +161,7 @@ function viewWelcome() {
         </div>
         <p class="fine" style="margin-top:26px">
           Built for honest self-reflection and grounded in research. Prototype items —
-          not a clinical or validated assessment.
+          not a clinical or validated assessment. <span style="opacity:.5">· ${BUILD}</span>
         </p>
       </div>
     </section>`)

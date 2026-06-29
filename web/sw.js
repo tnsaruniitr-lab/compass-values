@@ -2,7 +2,7 @@
 /* Compass service worker — network-first with offline cache fallback.
    Served from the site root with Service-Worker-Allowed: / so it can also
    cache the /engine modules that live outside /web. */
-const CACHE = 'compass-v3'
+const CACHE = 'compass-v4'
 const SHELL = [
   '/web/', '/web/index.html', '/web/styles.css', '/web/app.js', '/web/circumplex.js',
   '/web/archetypeArt.js', '/web/manifest.webmanifest', '/web/icon.svg',
