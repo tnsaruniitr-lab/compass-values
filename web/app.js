@@ -249,15 +249,29 @@ function viewSort() {
  */
 function wireDragSort(list) {
   if (!list) return
-  const GAP = 10
   let drag = null; let dir = 0; let raf = 0
 
   // Final index the dragged card would land at = how many other cards sit above the pointer.
   const targetIndex = () => {
     const pageY = drag.lastY + window.scrollY
     let c = 0
-    for (const o of drag.others) if (o.mid < pageY) c++
+    for (const m of drag.meta) { if (m.i === drag.origIdx) continue; if (m.mid < pageY) c++ }
     return c
+  }
+
+  // FLIP: translate each non-dragged card by the EXACT delta to its new slot,
+  // so it works with variable card heights (no gaps, no overlaps).
+  const layout = (c) => {
+    const order = drag.meta.map((m) => m.i).filter((i) => i !== drag.origIdx)
+    order.splice(Math.max(0, Math.min(order.length, c)), 0, drag.origIdx)
+    let cum = drag.startTop
+    const newTop = {}
+    for (const i of order) { newTop[i] = cum; cum += drag.meta[i].h + drag.gap }
+    for (const m of drag.meta) {
+      if (m.i === drag.origIdx) continue
+      const dy = newTop[m.i] - m.top
+      m.el.style.transform = dy ? `translate3d(0, ${dy.toFixed(1)}px, 0)` : ''
+    }
   }
 
   const paint = (clientY) => {
@@ -265,15 +279,7 @@ function wireDragSort(list) {
     const pageY = clientY + window.scrollY
     drag.card.style.transform = `translate3d(0, ${(pageY - drag.startPageY).toFixed(1)}px, 0) scale(1.02)`
     const c = targetIndex()
-    if (c !== drag.idx) {
-      drag.idx = c
-      for (const o of drag.others) {
-        let ty = 0
-        if (c > drag.origIdx && o.idx > drag.origIdx && o.idx <= c) ty = -drag.shift // close the hole, open gap below
-        else if (c < drag.origIdx && o.idx >= c && o.idx < drag.origIdx) ty = drag.shift // open gap above
-        o.el.style.transform = ty ? `translate3d(0, ${ty}px, 0)` : ''
-      }
-    }
+    if (c !== drag.idx) { drag.idx = c; layout(c) }
     const top = 118; const bot = window.innerHeight - 126
     dir = clientY < top ? -1 : clientY > bot ? 1 : 0
     if (dir && !raf) raf = requestAnimationFrame(tick)
@@ -291,12 +297,10 @@ function wireDragSort(list) {
     e.preventDefault()
     try { window.getSelection().removeAllRanges() } catch {}
     const all = Array.from(list.querySelectorAll('.sortcard'))
-    const origIdx = all.indexOf(card)
-    const others = all.filter((c) => c !== card).map((el) => {
-      const r = el.getBoundingClientRect()
-      return { el, idx: all.indexOf(el), mid: r.top + window.scrollY + r.height / 2 }
-    })
-    drag = { card, others, origIdx, shift: card.offsetHeight + GAP, startPageY: e.clientY + window.scrollY, lastY: e.clientY, idx: -1 }
+    const cs = getComputedStyle(list)
+    const gap = parseFloat(cs.rowGap || cs.gap) || 10
+    const meta = all.map((el, i) => ({ el, i, h: el.offsetHeight, top: el.offsetTop, mid: el.getBoundingClientRect().top + window.scrollY + el.offsetHeight / 2 }))
+    drag = { card, meta, origIdx: all.indexOf(card), gap, startTop: meta[0].top, startPageY: e.clientY + window.scrollY, lastY: e.clientY, idx: -1 }
     card.classList.add('dragging'); list.classList.add('is-dragging')
     try { card.setPointerCapture(e.pointerId) } catch {}
     paint(e.clientY)
@@ -308,14 +312,15 @@ function wireDragSort(list) {
     dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0 }
     const d = drag; drag = null
     d.card.classList.remove('dragging'); d.card.style.transform = ''
-    d.others.forEach((o) => { o.el.style.transform = '' })
+    d.meta.forEach((m) => { m.el.style.transform = '' })
     list.classList.remove('is-dragging')
     const moved = Math.abs(d.lastY + window.scrollY - d.startPageY) > 6
     if (moved) {
-      const idx = d.idx < 0 ? d.origIdx : d.idx
-      const ids = d.others.map((o) => o.el.dataset.id)
-      ids.splice(Math.max(0, Math.min(ids.length, idx)), 0, d.card.dataset.id)
-      state.rounds[state.roundIndex] = ids; state.moves += 1
+      const c = d.idx < 0 ? d.origIdx : d.idx
+      const order = d.meta.map((m) => m.i).filter((i) => i !== d.origIdx)
+      order.splice(Math.max(0, Math.min(order.length, c)), 0, d.origIdx)
+      state.rounds[state.roundIndex] = order.map((i) => d.meta[i].el.dataset.id)
+      state.moves += 1
       render()
     }
   }

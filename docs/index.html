@@ -264,7 +264,7 @@ button, .btn, .dotbtn, .backlink, .md-row, .pick button { touch-action: manipula
   .card { padding: 24px 18px; border-radius: 22px; }
   .display { font-size: clamp(30px, 9vw, 46px); }
   .lede { font-size: 15px; margin-top: 16px; }
-  .qhead h2 { font-size: clamp(20px, 5.6vw, 26px); }
+  .qhead h2 { font-size: clamp(18px, 5vw, 23px); }
   .results-grid { gap: 22px; }
   .hero-title { font-size: clamp(26px, 8vw, 36px); }
 
@@ -793,12 +793,12 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 /* Keep the question + progress pinned while the options scroll under them. */
 .stickyhead {
   position: sticky; top: 0; z-index: 5;
-  margin-bottom: 22px; padding: 6px 0 14px;
+  margin-bottom: 14px; padding: 4px 0 10px;
   background: color-mix(in srgb, var(--bg-1) 90%, transparent);
   -webkit-backdrop-filter: blur(12px) saturate(135%);
   backdrop-filter: blur(12px) saturate(135%);
 }
-.stickyhead .topbar { margin-bottom: 16px; }
+.stickyhead .topbar { margin-bottom: 12px; }
 .stickyhead .qhead { margin-bottom: 0; }
 
 /* Fix: on light themes the selected "Least" pill had near-white text → invisible.
@@ -955,15 +955,15 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 /* ==========================================================================
    Drag-to-sort — reorder cards (top = most, bottom = least); grip initiates
    ========================================================================== */
-.ranklbl { font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--faint); margin: 10px 2px; }
+.ranklbl { font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--faint); margin: 4px 2px; }
 .ranklbl-top { color: var(--good); }
-.ranklbl-bot { margin-top: 12px; }
+.ranklbl-bot { margin-top: 6px; }
 
-.sortlist { display: flex; flex-direction: column; gap: 10px; user-select: none; -webkit-user-select: none; }
+.sortlist { display: flex; flex-direction: column; gap: 8px; user-select: none; -webkit-user-select: none; }
 .sortlist.is-dragging { cursor: grabbing; }
 .sortcard {
-  display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 12px;
-  padding: 14px 16px; border-radius: var(--r-md);
+  display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 11px;
+  padding: 11px 14px; border-radius: var(--r-md);
   border: 1px solid var(--line); background: var(--glass);
   box-shadow: 0 1px 2px rgba(0,0,0,.04);
   cursor: grab; touch-action: none; /* whole card draggable; no native scroll/zoom hijack */
@@ -971,9 +971,9 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
   transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
 }
 .sortcard:active { cursor: grabbing; }
-.sortcard .sc-grip { font-size: 19px; color: var(--faint); line-height: 1; }
-.sortcard .sc-emoji { font-size: 21px; line-height: 1; }
-.sortcard .sc-text { font-size: 15px; line-height: 1.35; }
+.sortcard .sc-grip { font-size: 18px; color: var(--faint); line-height: 1; }
+.sortcard .sc-emoji { font-size: 19px; line-height: 1; }
+.sortcard .sc-text { font-size: 14.5px; line-height: 1.3; }
 /* other cards glide to open a gap while a card is being dragged */
 .sortlist.is-dragging .sortcard:not(.dragging) { transition: transform .17s cubic-bezier(.2,.7,.3,1); }
 .sortcard.dragging {
@@ -1030,7 +1030,7 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 .mixleg b { color: var(--muted); font-weight: 700; }
 .mixdot { width: 9px; height: 9px; border-radius: 50%; }
 
-.qhead .qsub { font-size: 13.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+.qhead .qsub { font-size: 12.5px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
 .qhead .qsub em { font-style: italic; }
 
   </style>
@@ -2609,15 +2609,29 @@ function viewSort() {
  */
 function wireDragSort(list) {
   if (!list) return
-  const GAP = 10
   let drag = null; let dir = 0; let raf = 0
 
   // Final index the dragged card would land at = how many other cards sit above the pointer.
   const targetIndex = () => {
     const pageY = drag.lastY + window.scrollY
     let c = 0
-    for (const o of drag.others) if (o.mid < pageY) c++
+    for (const m of drag.meta) { if (m.i === drag.origIdx) continue; if (m.mid < pageY) c++ }
     return c
+  }
+
+  // FLIP: translate each non-dragged card by the EXACT delta to its new slot,
+  // so it works with variable card heights (no gaps, no overlaps).
+  const layout = (c) => {
+    const order = drag.meta.map((m) => m.i).filter((i) => i !== drag.origIdx)
+    order.splice(Math.max(0, Math.min(order.length, c)), 0, drag.origIdx)
+    let cum = drag.startTop
+    const newTop = {}
+    for (const i of order) { newTop[i] = cum; cum += drag.meta[i].h + drag.gap }
+    for (const m of drag.meta) {
+      if (m.i === drag.origIdx) continue
+      const dy = newTop[m.i] - m.top
+      m.el.style.transform = dy ? `translate3d(0, ${dy.toFixed(1)}px, 0)` : ''
+    }
   }
 
   const paint = (clientY) => {
@@ -2625,15 +2639,7 @@ function wireDragSort(list) {
     const pageY = clientY + window.scrollY
     drag.card.style.transform = `translate3d(0, ${(pageY - drag.startPageY).toFixed(1)}px, 0) scale(1.02)`
     const c = targetIndex()
-    if (c !== drag.idx) {
-      drag.idx = c
-      for (const o of drag.others) {
-        let ty = 0
-        if (c > drag.origIdx && o.idx > drag.origIdx && o.idx <= c) ty = -drag.shift // close the hole, open gap below
-        else if (c < drag.origIdx && o.idx >= c && o.idx < drag.origIdx) ty = drag.shift // open gap above
-        o.el.style.transform = ty ? `translate3d(0, ${ty}px, 0)` : ''
-      }
-    }
+    if (c !== drag.idx) { drag.idx = c; layout(c) }
     const top = 118; const bot = window.innerHeight - 126
     dir = clientY < top ? -1 : clientY > bot ? 1 : 0
     if (dir && !raf) raf = requestAnimationFrame(tick)
@@ -2651,12 +2657,10 @@ function wireDragSort(list) {
     e.preventDefault()
     try { window.getSelection().removeAllRanges() } catch {}
     const all = Array.from(list.querySelectorAll('.sortcard'))
-    const origIdx = all.indexOf(card)
-    const others = all.filter((c) => c !== card).map((el) => {
-      const r = el.getBoundingClientRect()
-      return { el, idx: all.indexOf(el), mid: r.top + window.scrollY + r.height / 2 }
-    })
-    drag = { card, others, origIdx, shift: card.offsetHeight + GAP, startPageY: e.clientY + window.scrollY, lastY: e.clientY, idx: -1 }
+    const cs = getComputedStyle(list)
+    const gap = parseFloat(cs.rowGap || cs.gap) || 10
+    const meta = all.map((el, i) => ({ el, i, h: el.offsetHeight, top: el.offsetTop, mid: el.getBoundingClientRect().top + window.scrollY + el.offsetHeight / 2 }))
+    drag = { card, meta, origIdx: all.indexOf(card), gap, startTop: meta[0].top, startPageY: e.clientY + window.scrollY, lastY: e.clientY, idx: -1 }
     card.classList.add('dragging'); list.classList.add('is-dragging')
     try { card.setPointerCapture(e.pointerId) } catch {}
     paint(e.clientY)
@@ -2668,14 +2672,15 @@ function wireDragSort(list) {
     dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0 }
     const d = drag; drag = null
     d.card.classList.remove('dragging'); d.card.style.transform = ''
-    d.others.forEach((o) => { o.el.style.transform = '' })
+    d.meta.forEach((m) => { m.el.style.transform = '' })
     list.classList.remove('is-dragging')
     const moved = Math.abs(d.lastY + window.scrollY - d.startPageY) > 6
     if (moved) {
-      const idx = d.idx < 0 ? d.origIdx : d.idx
-      const ids = d.others.map((o) => o.el.dataset.id)
-      ids.splice(Math.max(0, Math.min(ids.length, idx)), 0, d.card.dataset.id)
-      state.rounds[state.roundIndex] = ids; state.moves += 1
+      const c = d.idx < 0 ? d.origIdx : d.idx
+      const order = d.meta.map((m) => m.i).filter((i) => i !== d.origIdx)
+      order.splice(Math.max(0, Math.min(order.length, c)), 0, d.origIdx)
+      state.rounds[state.roundIndex] = order.map((i) => d.meta[i].el.dataset.id)
+      state.moves += 1
       render()
     }
   }
