@@ -974,11 +974,13 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 .sortcard .sc-grip { font-size: 19px; color: var(--faint); line-height: 1; }
 .sortcard .sc-emoji { font-size: 21px; line-height: 1; }
 .sortcard .sc-text { font-size: 15px; line-height: 1.35; }
+/* other cards glide to open a gap while a card is being dragged */
+.sortlist.is-dragging .sortcard:not(.dragging) { transition: transform .17s cubic-bezier(.2,.7,.3,1); }
 .sortcard.dragging {
-  position: relative; z-index: 30; cursor: grabbing; transition: none; will-change: transform;
-  border-color: color-mix(in srgb, var(--c) 55%, transparent);
-  background: color-mix(in srgb, var(--c) 14%, var(--glass-2));
-  box-shadow: 0 20px 44px -14px rgba(0,0,0,.45), 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+  position: relative; z-index: 30; cursor: grabbing; transition: none; will-change: transform; opacity: .9;
+  border-color: color-mix(in srgb, var(--c) 60%, transparent);
+  background: color-mix(in srgb, var(--c) 16%, var(--glass-2));
+  box-shadow: 0 22px 46px -14px rgba(0,0,0,.5), 0 0 0 1px color-mix(in srgb, var(--c) 38%, transparent);
 }
 /* absolutely-positioned drop indicator — moving it never reflows the cards */
 .drop-line {
@@ -1027,6 +1029,9 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 .mixleg { font-size: 13px; color: var(--text); display: inline-flex; align-items: center; gap: 6px; }
 .mixleg b { color: var(--muted); font-weight: 700; }
 .mixdot { width: 9px; height: 9px; border-radius: 50%; }
+
+.qhead .qsub { font-size: 13.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+.qhead .qsub em { font-style: italic; }
 
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -2571,6 +2576,7 @@ function viewSort() {
           <div class="qhead">
             <div class="k">Round ${state.roundIndex + 1} of 2 · ${order.length} values</div>
             <h2>Drag what matters <em>most</em> to the top</h2>
+            <p class="qsub">…and what matters <em>least</em> to the bottom. The ones in the middle can stay as they are.</p>
           </div>
         </div>
         <div class="ranklbl ranklbl-top">▲ Matters most</div>
@@ -2596,29 +2602,38 @@ function viewSort() {
 }
 
 /**
- * Pointer drag-to-reorder. Whole card is draggable. Rects are cached once on
- * grab (no per-move layout reads); the drop indicator is absolutely positioned
- * (no reflow); the dragged card uses translate3d with the CSS transition
- * disabled — so it tracks the finger 1:1 with no lag, and text never selects.
+ * Pointer drag-to-reorder with LIVE displacement: the dragged card (translucent)
+ * tracks the finger 1:1; the other cards smoothly shift to open a gap where it
+ * would land. Rects are cached once on grab (no per-move layout reads). The
+ * reorder only commits on drop. Whole card is draggable; text never selects.
  */
 function wireDragSort(list) {
   if (!list) return
-  list.style.position = 'relative'
+  const GAP = 10
   let drag = null; let dir = 0; let raf = 0
 
-  const computeIdx = (clientY) => {
-    const pageY = clientY + window.scrollY
-    let i = 0
-    while (i < drag.mids.length && pageY > drag.mids[i]) i++
-    return i
+  // Final index the dragged card would land at = how many other cards sit above the pointer.
+  const targetIndex = () => {
+    const pageY = drag.lastY + window.scrollY
+    let c = 0
+    for (const o of drag.others) if (o.mid < pageY) c++
+    return c
   }
 
   const paint = (clientY) => {
     drag.lastY = clientY
     const pageY = clientY + window.scrollY
-    drag.card.style.transform = `translate3d(0, ${(pageY - drag.startPageY).toFixed(1)}px, 0) scale(1.03)`
-    const i = computeIdx(clientY)
-    if (i !== drag.idx) { drag.idx = i; drag.line.style.top = `${drag.slots[i]}px` }
+    drag.card.style.transform = `translate3d(0, ${(pageY - drag.startPageY).toFixed(1)}px, 0) scale(1.02)`
+    const c = targetIndex()
+    if (c !== drag.idx) {
+      drag.idx = c
+      for (const o of drag.others) {
+        let ty = 0
+        if (c > drag.origIdx && o.idx > drag.origIdx && o.idx <= c) ty = -drag.shift // close the hole, open gap below
+        else if (c < drag.origIdx && o.idx >= c && o.idx < drag.origIdx) ty = drag.shift // open gap above
+        o.el.style.transform = ty ? `translate3d(0, ${ty}px, 0)` : ''
+      }
+    }
     const top = 118; const bot = window.innerHeight - 126
     dir = clientY < top ? -1 : clientY > bot ? 1 : 0
     if (dir && !raf) raf = requestAnimationFrame(tick)
@@ -2627,7 +2642,7 @@ function wireDragSort(list) {
   const tick = () => {
     if (!drag || !dir) { raf = 0; return }
     window.scrollBy(0, dir * 12)
-    paint(drag.lastY) // pageY shifts with scroll → card stays glued, indicator stays correct
+    paint(drag.lastY) // pageY shifts with scroll → card stays glued, gaps stay correct
     raf = requestAnimationFrame(tick)
   }
 
@@ -2635,12 +2650,13 @@ function wireDragSort(list) {
     const card = e.target.closest('.sortcard'); if (!card || e.button === 2) return
     e.preventDefault()
     try { window.getSelection().removeAllRanges() } catch {}
-    const others = Array.from(list.querySelectorAll('.sortcard')).filter((c) => c !== card)
-    const mids = others.map((c) => { const r = c.getBoundingClientRect(); return r.top + window.scrollY + r.height / 2 })
-    const slots = others.map((c) => c.offsetTop)
-    slots.push(others.length ? others[others.length - 1].offsetTop + others[others.length - 1].offsetHeight : 0)
-    const line = document.createElement('div'); line.className = 'drop-line'; list.appendChild(line)
-    drag = { card, others, mids, slots, line, startPageY: e.clientY + window.scrollY, lastY: e.clientY, idx: -1 }
+    const all = Array.from(list.querySelectorAll('.sortcard'))
+    const origIdx = all.indexOf(card)
+    const others = all.filter((c) => c !== card).map((el) => {
+      const r = el.getBoundingClientRect()
+      return { el, idx: all.indexOf(el), mid: r.top + window.scrollY + r.height / 2 }
+    })
+    drag = { card, others, origIdx, shift: card.offsetHeight + GAP, startPageY: e.clientY + window.scrollY, lastY: e.clientY, idx: -1 }
     card.classList.add('dragging'); list.classList.add('is-dragging')
     try { card.setPointerCapture(e.pointerId) } catch {}
     paint(e.clientY)
@@ -2651,12 +2667,14 @@ function wireDragSort(list) {
     if (!drag) return
     dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0 }
     const d = drag; drag = null
-    d.card.classList.remove('dragging'); d.card.style.transform = ''; list.classList.remove('is-dragging')
-    d.line.remove()
+    d.card.classList.remove('dragging'); d.card.style.transform = ''
+    d.others.forEach((o) => { o.el.style.transform = '' })
+    list.classList.remove('is-dragging')
     const moved = Math.abs(d.lastY + window.scrollY - d.startPageY) > 6
     if (moved) {
-      const ids = d.others.map((c) => c.dataset.id)
-      ids.splice(Math.max(0, Math.min(ids.length, d.idx)), 0, d.card.dataset.id)
+      const idx = d.idx < 0 ? d.origIdx : d.idx
+      const ids = d.others.map((o) => o.el.dataset.id)
+      ids.splice(Math.max(0, Math.min(ids.length, idx)), 0, d.card.dataset.id)
       state.rounds[state.roundIndex] = ids; state.moves += 1
       render()
     }

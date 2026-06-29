@@ -960,11 +960,13 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 .sortcard .sc-grip { font-size: 19px; color: var(--faint); line-height: 1; }
 .sortcard .sc-emoji { font-size: 21px; line-height: 1; }
 .sortcard .sc-text { font-size: 15px; line-height: 1.35; }
+/* other cards glide to open a gap while a card is being dragged */
+.sortlist.is-dragging .sortcard:not(.dragging) { transition: transform .17s cubic-bezier(.2,.7,.3,1); }
 .sortcard.dragging {
-  position: relative; z-index: 30; cursor: grabbing; transition: none; will-change: transform;
-  border-color: color-mix(in srgb, var(--c) 55%, transparent);
-  background: color-mix(in srgb, var(--c) 14%, var(--glass-2));
-  box-shadow: 0 20px 44px -14px rgba(0,0,0,.45), 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+  position: relative; z-index: 30; cursor: grabbing; transition: none; will-change: transform; opacity: .9;
+  border-color: color-mix(in srgb, var(--c) 60%, transparent);
+  background: color-mix(in srgb, var(--c) 16%, var(--glass-2));
+  box-shadow: 0 22px 46px -14px rgba(0,0,0,.5), 0 0 0 1px color-mix(in srgb, var(--c) 38%, transparent);
 }
 /* absolutely-positioned drop indicator — moving it never reflows the cards */
 .drop-line {
@@ -1013,3 +1015,6 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 .mixleg { font-size: 13px; color: var(--text); display: inline-flex; align-items: center; gap: 6px; }
 .mixleg b { color: var(--muted); font-weight: 700; }
 .mixdot { width: 9px; height: 9px; border-radius: 50%; }
+
+.qhead .qsub { font-size: 13.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+.qhead .qsub em { font-style: italic; }
