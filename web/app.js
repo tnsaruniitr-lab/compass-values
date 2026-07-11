@@ -5,7 +5,7 @@ import {
   buildProfile, scoreRanking, scoreMaxDiff, MAXDIFF_BLOCKS,
   INTEREST_ITEMS, scoreInterests,
   careerReport, workInsights, relationshipCompass, relationshipSignal, loveInsights,
-  synthesizeIdentity,
+  synthesizeIdentity, pairSignature, deriveAspects, distinctiveSplit, deepReads,
 } from '../engine/index.js'
 import { renderCircumplex } from './circumplex.js'
 import { archetypeArt } from './archetypeArt.js'
@@ -14,7 +14,7 @@ const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
 // Bump this every deploy — shown on the welcome screen so you can verify which
 // build is actually live (helps tell deploy/CDN/service-worker staleness apart).
-const BUILD = 'b11 · sharper-career'
+const BUILD = 'b12 · the-wow-layer'
 try { console.info('%cCompass ' + BUILD, 'color:#5eead4;font-weight:600') } catch {}
 try { document.documentElement.dataset.build = BUILD } catch {}
 
@@ -830,6 +830,15 @@ function viewResults() {
       <div class="ctrack"><span class="cmid"></span><span class="cknob" style="left:${knobPos(a.value)}%"></span></div>
       <p class="creflect">${a.strength === 'balanced' ? 'Genuinely balanced — no lean to report.' : `A ${a.strength} lean, drawn from your own ranking.`}</p>
     </div>`).join('')
+  /* ---- the leading-pair signature: synthesis of the user's top-2 ---- */
+  const sig = pairSignature(profile)
+  const sigHtml = sig
+    ? `<div class="pair-sig">
+         <p class="sig-lede">Together, they make you <em>${sig.epithet}</em>.</p>
+         <p class="sig-essence">${sig.essence}</p>
+         <p class="scene-fine sig-shadow">The shadow side: ${sig.shadow}</p>
+       </div>`
+    : ''
   const sceneIdentity = `
     <section class="scene scene-identity scene-hero" style="--accent:${idColor}">
       <div class="scene-inner center">
@@ -837,6 +846,7 @@ function viewResults() {
         <div class="hero-shape" role="img" aria-label="Your values map. Top values: ${identity.traits.join(', ')}.">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
         ${crownHtml}
         <h1 class="id-name" style="font-size:clamp(26px,5vw,40px)">${identity.headline}</h1>
+        ${sigHtml}
         <div class="drivers" style="text-align:left">${drivers}</div>
         <p class="scene-fine">${provenance}</p>
         <p class="scene-fine">${convLine}</p>
@@ -854,6 +864,7 @@ function viewResults() {
         <div class="eyebrow">The forces underneath</div>
         <h2 class="scene-h2" style="color:${idColor}">What pulls your shape</h2>
         <p class="scene-fine">${domGated}</p>
+        ${(() => { const sp = distinctiveSplit(profile); return sp ? `<p class="split-note">◈ ${sp.text}</p>` : '' })()}
         <div class="compass">${axisBars}</div>
         <p class="id-portrait" style="margin-top:20px">${identity.portrait}</p>
         <details class="howto">
@@ -862,6 +873,41 @@ function viewResults() {
           Values on opposite sides pull against each other${profile.circumplex.magnitude >= 0.5 ? '; the glowing arrow is your overall pull' : ''}.
           Every position is relative to <em>your own</em> ranking, not to other people.</p>
         </details>
+      </div>
+    </section>`
+
+  /* ---- Scene 2.5: HOW IT SHOWS UP — derived aspects + deep reads ---- */
+  const aspects = deriveAspects(profile)
+  const aspectCards = aspects.map((a) => `
+    <div class="aspect-card">
+      <div class="aspect-k">${a.title}</div>
+      <div class="aspect-label">${a.variant.label}</div>
+      <p class="aspect-body">${a.variant.body}</p>
+      ${a.drivers.length ? `<div class="aspect-prov">drawn from ${a.drivers.map((d) => `<span style="color:${valueInk(d)}">${valueById(d).name}</span>`).join(' + ')}</div>` : '<div class="aspect-prov">no single pattern — genuinely context-driven</div>'}
+      ${a.hedged ? '<div class="aspect-prov">⚠ your two signals disagreed on the drivers here — hold loosely</div>' : ''}
+    </div>`).join('')
+  const reads = deepReads(profile, 3)
+  const deepHtml = reads.map((r) => `
+    <details class="deepread" style="--accent:${valueInk(r.id)}">
+      <summary><span class="dr-name" style="color:${valueInk(r.id)}">${r.name}</span><span class="dr-hint">the deep read →</span></summary>
+      <div class="dr-body">
+        <p class="dr-goal"><strong>What it's really after:</strong> ${r.goal}</p>
+        <p class="rolelabel" style="margin-top:12px">You'll recognise it here</p>
+        <ul class="dr-list">${r.shows_up.map((x) => `<li>${x}</li>`).join('')}</ul>
+        <p class="dr-shadow"><strong>Its shadow:</strong> ${r.shadow}</p>
+        <p class="dr-misread"><strong>How people misread it:</strong> ${r.misread}</p>
+      </div>
+    </details>`).join('')
+  const sceneAspects = `
+    <section class="scene scene-aspects">
+      <div class="scene-inner">
+        <div class="eyebrow">How it shows up</div>
+        <h2 class="scene-h2" style="color:${idColor}">Your values, in motion</h2>
+        <p class="scene-fine">Five patterns derived from your ranking — each one names its sources, so you can check the reasoning.</p>
+        <div class="aspect-grid">${aspectCards}</div>
+        <p class="rolelabel" style="margin-top:28px">Your top three, in depth</p>
+        <div class="deepreads">${deepHtml}</div>
+        <p class="scene-fine" style="margin-top:14px">These are tendencies drawn from what you chose to protect — not traits, not a diagnosis. Where a pattern misses, that miss is information too.</p>
       </div>
     </section>`
 
@@ -1041,7 +1087,7 @@ function viewResults() {
   const sharedBanner = state.shared
     ? '<div class="ipanel" style="margin:12px auto;max-width:640px"><p class="scene-fine">You\'re viewing a shared result. It reflects someone\'s answers, not yours.</p></div>'
     : ''
-  mount(`<div class="story">${sharedBanner}${sceneIdentity}${sceneValues}${sceneWork}${sceneLove}${sceneClose}</div>`)
+  mount(`<div class="story">${sharedBanner}${sceneIdentity}${sceneValues}${sceneAspects}${sceneWork}${sceneLove}${sceneClose}</div>`)
 
   // Anticipation beat: a brief "reading" veil while the compass shape draws
   // itself in, so the reveal lands as a moment. Skipped for reduced-motion and
