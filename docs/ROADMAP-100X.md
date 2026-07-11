@@ -133,6 +133,13 @@ a shared link produces a rich preview and a comparable permalink.*
   medium)* — sort → ~10 portrait items → trade-offs; real convergence &
   confidence. *(Partial: MaxDiff is now wired in Phase 1; the portrait signal is
   the remaining add, gated on licensing.)*
+- **12-item RIASEC interest patch (spec §A7)** *(high / medium)* — **SHIPPED
+  2026-07-11 (b11)**: quick-fire work-interests round after the trade-offs,
+  blended into career scoring (0.7 values / 0.3 interests, separately
+  noise-calibrated bands); Maker unlocked when hands-on is measured; the
+  abstain card now offers "Sharpen it: 12 quick questions" directly; career
+  scene is "Your top 3 directions" with weekly micro-experiments + O*NET
+  links; permalink v2 carries the answers.
 - **Visible confidence UI + first-class abstain state** *(high / small)* — per-
   value chips, a convergence verdict, noise-calibrated bands, "no clear lean
   yet." *(Shipped in Phase 1.)*
