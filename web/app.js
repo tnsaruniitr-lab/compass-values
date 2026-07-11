@@ -14,22 +14,27 @@ const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
 // Bump this every deploy — shown on the welcome screen so you can verify which
 // build is actually live (helps tell deploy/CDN/service-worker staleness apart).
-const BUILD = 'b12 · the-wow-layer'
+const BUILD = 'b13 · the-observatory'
 try { console.info('%cCompass ' + BUILD, 'color:#5eead4;font-weight:600') } catch {}
 try { document.documentElement.dataset.build = BUILD } catch {}
 
 /* ------------------------------------------------------------------- theming */
-/** Selectable themes: label (dropdown), browser chrome bar colour, light/dark mode. */
+/** The four Observatory skies: one design language, four pigment sets. */
 const THEMES = {
-  linen: { label: 'Linen', bar: '#f4eee2', mode: 'light' },
-  dark: { label: 'Twilight', bar: '#0d0b1c', mode: 'dark' },
-  midnight: { label: 'Midnight', bar: '#0a0c10', mode: 'dark' },
-  meadow: { label: 'Meadow', bar: '#eef3e8', mode: 'light' },
-  bloom: { label: 'Bloom', bar: '#fff4ef', mode: 'light' },
+  midnight: { label: 'Midnight', bar: '#0B0E1A', mode: 'dark' },
+  abyss: { label: 'Abyss', bar: '#0A1614', mode: 'dark' },
+  nebula: { label: 'Nebula', bar: '#140E20', mode: 'dark' },
+  dawn: { label: 'Dawn', bar: '#F5EFDF', mode: 'light' },
 }
-const DEFAULT_THEME = 'linen'
+/** Saved prefs from the pre-Observatory era map onto the nearest sky. */
+const LEGACY_THEMES = { linen: 'dawn', meadow: 'dawn', bloom: 'dawn', dark: 'midnight' }
+const DEFAULT_THEME = 'midnight'
 let theme = DEFAULT_THEME
-try { const s = localStorage.getItem('compass-theme'); if (THEMES[s]) theme = s } catch {}
+try {
+  const s = localStorage.getItem('compass-theme')
+  if (THEMES[s]) theme = s
+  else if (LEGACY_THEMES[s]) theme = LEGACY_THEMES[s]
+} catch {}
 const themeMode = (t) => (THEMES[t] ? THEMES[t].mode : 'dark')
 function applyTheme(t) {
   theme = THEMES[t] ? t : DEFAULT_THEME
@@ -39,7 +44,48 @@ function applyTheme(t) {
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', THEMES[theme].bar)
   try { localStorage.setItem('compass-theme', theme) } catch {}
+  try { document.dispatchEvent(new CustomEvent('compass-theme-changed')) } catch {}
 }
+/* ---------------------------------------------------------------- starfield */
+/** The night behind everything. Theme-aware pigment; static under
+ *  prefers-reduced-motion; ink specks at low opacity on the Dawn sky. */
+const STAR_PIGMENT = { midnight: '#E8E4D8', abyss: '#DDE8E2', nebula: '#E8E2F0', dawn: '#5a4826' }
+function startStars() {
+  const cv = document.getElementById('stars')
+  if (!(cv instanceof HTMLCanvasElement)) return
+  const ctx = cv.getContext('2d')
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  let stars = []
+  const seed = () => Array.from({ length: Math.min(220, Math.floor(window.innerWidth / 7)) }, () => ({
+    x: Math.random(), y: Math.random(), r: Math.random() * 1.1 + 0.25,
+    p: Math.random() * Math.PI * 2, v: 0.2 + Math.random() * 0.6,
+  }))
+  const size = () => {
+    cv.width = window.innerWidth * devicePixelRatio
+    cv.height = window.innerHeight * devicePixelRatio
+    stars = seed()
+  }
+  size(); window.addEventListener('resize', size)
+  let t = 0
+  const frame = () => {
+    ctx.clearRect(0, 0, cv.width, cv.height)
+    const light = themeMode(theme) === 'light'
+    ctx.fillStyle = STAR_PIGMENT[theme] || '#E8E4D8'
+    for (const s of stars) {
+      const tw = reduced ? 0.55 : 0.3 + 0.4 * (1 + Math.sin(t * s.v + s.p)) / 2
+      ctx.globalAlpha = tw * (light ? 0.35 : 1)
+      ctx.beginPath()
+      ctx.arc(s.x * cv.width, s.y * cv.height, s.r * devicePixelRatio, 0, 7)
+      ctx.fill()
+    }
+    t += 0.016
+    if (!reduced) requestAnimationFrame(frame)
+  }
+  frame()
+  // re-render once on theme change so pigment updates even under reduced motion
+  document.addEventListener('compass-theme-changed', () => { if (reduced) frame() })
+}
+
 /** Theme-aware higher-order colour (deeper, legible variant on light themes). */
 const hoColor = (id) => (themeMode(theme) === 'light' ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
 /** Theme-aware per-value INK: deep legible variant as text/pips on light themes,
@@ -843,7 +889,7 @@ function viewResults() {
     <section class="scene scene-identity scene-hero" style="--accent:${idColor}">
       <div class="scene-inner center">
         <div class="eyebrow">Your compass</div>
-        <div class="hero-shape" role="img" aria-label="Your values map. Top values: ${identity.traits.join(', ')}.">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
+        <div class="hero-shape" role="img" aria-label="Your values map. Top values: ${identity.traits.join(', ')}.">${renderCircumplex(profile, { theme })}</div>
         ${crownHtml}
         <h1 class="id-name" style="font-size:clamp(26px,5vw,40px)">${identity.headline}</h1>
         ${sigHtml}
@@ -878,9 +924,21 @@ function viewResults() {
 
   /* ---- Scene 2.5: HOW IT SHOWS UP — derived aspects + deep reads ---- */
   const aspects = deriveAspects(profile)
+  const gaugeTicks = Array.from({ length: 9 }, (_, i) => {
+    const ga = Math.PI * (1 - i / 8)
+    const x1 = 75 + 62 * Math.cos(ga), y1 = 78 - 62 * Math.sin(ga)
+    const x2 = 75 + (i % 4 === 0 ? 54 : 58) * Math.cos(ga), y2 = 78 - (i % 4 === 0 ? 54 : 58) * Math.sin(ga)
+    return `<line class="g-tick" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`
+  }).join('')
   const aspectCards = aspects.map((a) => `
     <div class="aspect-card">
       <div class="aspect-k">${a.title}</div>
+      <svg class="gauge-svg" viewBox="0 0 150 84" aria-hidden="true" data-lean="${a.lean.toFixed(3)}">
+        <path class="g-arc" d="M 13 78 A 62 62 0 0 1 137 78"/>
+        ${gaugeTicks}
+        <line class="g-needle" x1="75" y1="78" x2="75" y2="22"/>
+        <circle class="g-pivot" cx="75" cy="78" r="3.4"/>
+      </svg>
       <div class="aspect-label">${a.variant.label}</div>
       <p class="aspect-body">${a.variant.body}</p>
       ${a.drivers.length ? `<div class="aspect-prov">drawn from ${a.drivers.map((d) => `<span style="color:${valueInk(d)}">${valueById(d).name}</span>`).join(' + ')}</div>` : '<div class="aspect-prov">no single pattern — genuinely context-driven</div>'}
@@ -1137,11 +1195,44 @@ function viewResults() {
       prompt('Copy this link:', location.href)
     }
   })
+  // Instrument needles swing to their reading when the gauges scroll into view.
+  const reducedMotion = prefersReduced()
+  root.querySelectorAll('.gauge-svg').forEach((g) => {
+    const needle = g.querySelector('.g-needle')
+    const deg = Number(g.getAttribute('data-lean')) * 72
+    if (reducedMotion) { needle.style.transform = `rotate(${deg}deg)`; return }
+    new IntersectionObserver((es, o) => es.forEach((e) => {
+      if (e.isIntersecting) { needle.style.transform = `rotate(${deg}deg)`; o.disconnect() }
+    }), { threshold: 0.5 }).observe(g)
+  })
+
+  // The crown types itself — once per result, not on theme re-renders.
+  const crownNode = root.querySelector('.id-crown')
+  if (crownNode && !reducedMotion && crownTypedFor !== code) {
+    crownTypedFor = code
+    const parts = Array.from(crownNode.childNodes).map((n) => ({ n, t: n.textContent }))
+    parts.forEach((prt) => { prt.n.textContent = '' })
+    const total = parts.reduce((sum, prt) => sum + prt.t.length, 0)
+    const t0 = performance.now()
+    const CPS = 42 // characters per second — wall-clock, so throttled tabs catch up
+    ;(function step() {
+      let want = Math.min(total, Math.floor(((performance.now() - t0) / 1000) * CPS))
+      let acc = 0
+      for (const prt of parts) {
+        const take = Math.max(0, Math.min(prt.t.length, want - acc))
+        prt.n.textContent = prt.t.slice(0, take)
+        acc += prt.t.length
+      }
+      if (want < total) setTimeout(step, 30)
+    })()
+  }
+
   if (state.livedJustDone) {
     state.livedJustDone = false
     setTimeout(() => document.getElementById('gap')?.scrollIntoView({ behavior: 'smooth' }), 350)
   }
 }
+let crownTypedFor = null
 
 /* -------------------------------------------------------------------- render */
 function render() {
@@ -1188,6 +1279,7 @@ if (hashResult) {
   }
 }
 render()
+startStars()
 
 // Register the service worker so the app is installable & works offline.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

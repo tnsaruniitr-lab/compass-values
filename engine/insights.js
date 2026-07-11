@@ -110,7 +110,9 @@ export function deriveAspects(profile) {
     const drivers = isMixed ? [] : top.drivers
     // A pick built on values the user's own two signals disagreed about gets a hedge.
     const hedged = drivers.some((v) => profile.valueConfidence?.[v] === 'low')
-    out.push({ key, title: bank.title, variant, drivers, hedged })
+    // lean: signed needle position for instrument-style displays (0 = mixed/centre).
+    const lean = isMixed ? 0 : Math.max(-1, Math.min(1, top.score))
+    out.push({ key, title: bank.title, variant, drivers, hedged, lean })
   }
   // Fuel: keyed to the dominant higher-order quadrant, gated on margin.
   const fuelBank = ASPECT_BANK.find((a) => a.key === 'fuel')
@@ -119,7 +121,8 @@ export function deriveAspects(profile) {
     const variant = fuelBank.variants.find((v) => v.id === (balanced ? 'balanced' : profile.dominantHigher))
     if (variant) {
       const drivers = balanced ? [] : /** @type {ValueId[]} */ (HIGHER_ORDER[profile.dominantHigher] || []).slice(0, 2)
-      out.splice(3, 0, { key: 'fuel', title: fuelBank.title, variant, drivers, hedged: false })
+      const lean = balanced ? 0 : Math.max(-1, Math.min(1, profile.higher?.[profile.dominantHigher] ?? 0))
+      out.splice(3, 0, { key: 'fuel', title: fuelBank.title, variant, drivers, hedged: false, lean })
     }
   }
   return out

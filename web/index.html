@@ -16,8 +16,8 @@
   <meta name="twitter:title" content="Compass — the values test that shows its work" />
   <meta name="twitter:description" content="Sort your values, make real trade-offs, and see where your own answers agree — an honest Schwartz-circumplex map with visible confidence." />
   <meta name="twitter:image" content="https://trueself.carecompass.me/web/icon-512.png" />
-  <meta name="theme-color" content="#f4eee2" />
-  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#0B0E1A" />
+  <meta name="color-scheme" content="dark light" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="./icon.svg" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -41,22 +41,16 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="aurora" aria-hidden="true">
-    <span class="blob b1"></span>
-    <span class="blob b2"></span>
-    <span class="blob b3"></span>
-    <span class="blob b4"></span>
-    <div class="grain"></div>
-  </div>
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="vignette" aria-hidden="true"></div>
 
   <div class="theme-switch">
-    <span class="theme-ic" aria-hidden="true">◐</span>
-    <select id="themeSelect" aria-label="Choose a theme">
-      <option value="linen">Linen</option>
-      <option value="dark">Twilight</option>
+    <span class="theme-ic" aria-hidden="true">✶</span>
+    <select id="themeSelect" aria-label="Choose a sky">
       <option value="midnight">Midnight</option>
-      <option value="meadow">Meadow</option>
-      <option value="bloom">Bloom</option>
+      <option value="abyss">Abyss</option>
+      <option value="nebula">Nebula</option>
+      <option value="dawn">Dawn</option>
     </select>
   </div>
 

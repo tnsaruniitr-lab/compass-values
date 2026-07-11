@@ -2,27 +2,50 @@
 /** Renders the values circumplex as an animated SVG. Pure string output. */
 import { VALUES, VALUE_BY_ID, HIGHER_ORDER_META, HIGHER_ORDER_DEEP, VALUE_INK } from '../engine/index.js'
 
-/** Per-theme drawing palette. */
+/** Per-theme drawing palette — the four Observatory nocturnes (+ legacy aliases).
+ *  The instrument language is constant (hairline rings, fine ticks, brass-family
+ *  stroke, glowing constellation); only the pigments change per palette. */
+const OBS_DARK_COMMON = {
+  wedge: 0.05,
+  vecTip: '#E8E4D8',
+  deepHO: false,
+}
 const PALETTES = {
-  dark: {
-    ring: 'rgba(255,255,255,0.08)', axis: 'rgba(255,255,255,0.07)', wedge: 0.06,
-    blob: [['0%', '#a78bfa', '0.55'], ['55%', '#5eead4', '0.30'], ['100%', '#38bdf8', '0.12']],
-    blobStroke: '#c4b5fd', blobStrokeOp: 0.65,
-    vec: ['#fef9c3', '#a78bfa'], vecTip: '#fef9c3',
-    center: '#eef0ff', mutedLabel: 'rgba(214,218,247,0.55)', deepHO: false,
+  midnight: {
+    ...OBS_DARK_COMMON,
+    ring: 'rgba(201,169,106,0.22)', axis: 'rgba(126,137,176,0.16)', tick: 'rgba(201,169,106,0.4)',
+    blob: [['0%', '#C9A96A', '0.30'], ['55%', '#a78bfa', '0.18'], ['100%', '#38bdf8', '0.08']],
+    blobStroke: '#C9A96A', blobStrokeOp: 0.9,
+    vec: ['#E8E4D8', '#C9A96A'],
+    center: '#E8E4D8', mutedLabel: 'rgba(169,175,196,0.62)',
   },
-  bloom: {
-    ring: 'rgba(101,74,110,0.28)', axis: 'rgba(101,74,110,0.22)', wedge: 0.14,
-    // Warm rose core → orchid → peach rim (no cold teal terminator); higher alpha
-    // so the fill keeps its saturation on a near-white ground instead of greying out.
-    blob: [['0%', '#f0518f', '0.55'], ['50%', '#c47ad8', '0.42'], ['100%', '#ffb39c', '0.30']],
-    blobStroke: '#d65a9e', blobStrokeOp: 0.85,
-    // The key indicator must be the highest-contrast mark: a deep magenta→raspberry
-    // stroke reads as deliberate ink over the pale-pink blob.
-    vec: ['#7a2f9e', '#c2185b'], vecTip: '#7a1f6e',
-    center: '#5a3a52', mutedLabel: '#5f4b66', deepHO: true,
+  abyss: {
+    ...OBS_DARK_COMMON,
+    ring: 'rgba(191,164,94,0.22)', axis: 'rgba(123,150,140,0.16)', tick: 'rgba(191,164,94,0.4)',
+    blob: [['0%', '#BFA45E', '0.28'], ['55%', '#8FC5B0', '0.18'], ['100%', '#38bdf8', '0.07']],
+    blobStroke: '#BFA45E', blobStrokeOp: 0.9,
+    vec: ['#E2E8E0', '#BFA45E'],
+    center: '#E2E8E0', mutedLabel: 'rgba(165,186,176,0.62)',
+  },
+  nebula: {
+    ...OBS_DARK_COMMON,
+    ring: 'rgba(201,169,106,0.22)', axis: 'rgba(138,127,168,0.18)', tick: 'rgba(201,169,106,0.4)',
+    blob: [['0%', '#C9A96A', '0.26'], ['55%', '#B08FC9', '0.2'], ['100%', '#f0518f', '0.07']],
+    blobStroke: '#C9A96A', blobStrokeOp: 0.9,
+    vec: ['#E8E2F0', '#C9A96A'],
+    center: '#E8E2F0', mutedLabel: 'rgba(176,168,196,0.62)',
+  },
+  dawn: {
+    ring: 'rgba(90,72,38,0.3)', axis: 'rgba(90,72,38,0.18)', tick: 'rgba(90,72,38,0.42)', wedge: 0.1,
+    blob: [['0%', '#8A6D34', '0.26'], ['55%', '#c47ad8', '0.16'], ['100%', '#ffb39c', '0.14']],
+    blobStroke: '#8A6D34', blobStrokeOp: 0.85,
+    vec: ['#5a4826', '#8A6D34'], vecTip: '#4a3a1e',
+    center: '#2E2A20', mutedLabel: '#6B6350', deepHO: true,
   },
 }
+// Legacy aliases (old saved themes / older call sites).
+PALETTES.dark = PALETTES.midnight
+PALETTES.bloom = PALETTES.dawn
 
 const SIZE = 460
 const C = SIZE / 2
@@ -81,6 +104,16 @@ export function renderCircumplex(profile, opts = {}) {
   const rings = [0.4, 0.7, 1].map((t) =>
     `<circle cx="${C}" cy="${C}" r="${(R * t).toFixed(1)}" fill="none" stroke="${P.ring}" stroke-width="1"/>`,
   ).join('')
+
+  // Fine astrolabe ticks around the outer ring (major every 36°, minor every 6°)
+  const ticks = []
+  for (let deg = 0; deg < 360; deg += 6) {
+    const major = deg % 36 === 0
+    const [tx1, ty1] = pt(deg, R)
+    const [tx2, ty2] = pt(deg, R - (major ? 10 : 5))
+    ticks.push(`<line x1="${tx1.toFixed(1)}" y1="${ty1.toFixed(1)}" x2="${tx2.toFixed(1)}" y2="${ty2.toFixed(1)}" stroke="${P.tick || P.ring}" stroke-width="0.8" opacity="${major ? 0.85 : 0.4}"/>`)
+  }
+  const tickMarks = ticks.join('')
 
   // Cross axes
   const axes = [[90, 270], [0, 180]].map(([p, q]) => {
@@ -152,6 +185,7 @@ export function renderCircumplex(profile, opts = {}) {
 
       ${wedges}
       ${rings}
+      ${tickMarks}
       ${axes}
 
       <path class="circ-blob" d="${blobPath}" fill="url(#blobFill)" stroke="${P.blobStroke}" stroke-width="1.5" stroke-opacity="${P.blobStrokeOp}" filter="url(#glow)"/>
