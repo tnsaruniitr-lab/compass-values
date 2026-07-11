@@ -9,14 +9,43 @@ import {
 } from '../engine/index.js'
 import { renderCircumplex } from './circumplex.js'
 import { archetypeArt } from './archetypeArt.js'
+import { buildPlateSVG, plateToPNG, downloadBlob } from './plate.js'
+import { fingerprintOf, receiptsJSON, openAppendix, revisitICS } from './receipts.js'
 
 const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
 // Bump this every deploy — shown on the welcome screen so you can verify which
 // build is actually live (helps tell deploy/CDN/service-worker staleness apart).
-const BUILD = 'b13 · the-observatory'
+const BUILD = 'b14 · own-it'
 try { console.info('%cCompass ' + BUILD, 'color:#5eead4;font-weight:600') } catch {}
 try { document.documentElement.dataset.build = BUILD } catch {}
+
+/* ------------------------------------------------------------------ own it */
+/**
+ * The ONE thing for sale (see docs/ROADMAP-100X.md §offer): the full report
+ * stays free forever; "Own it" sells ownership — the print-grade plate, the
+ * signed receipts, and the six-month revisit. Payment is a hosted one-tap
+ * payment link (Apple/Google Pay first); no account, no email field, and the
+ * unlock lives only in this browser.
+ *
+ * TO GO LIVE: create a payment link (Stripe → Payment Links → success URL
+ * set to  https://trueself.carecompass.me/web/#own=paid ) and paste it here.
+ * While payLink is empty the offer stays hidden; append #own=preview to the
+ * URL to test the full unlocked suite.
+ */
+const OWN = {
+  payLink: '', // ← paste the hosted payment link to switch the offer on
+  price: '$9',
+}
+/** The named human behind the product — the audit's hard prerequisite. */
+const OWNER = {
+  name: 'Arun',
+  line: 'one person building an honest values test — no trackers, no accounts, your answers never leave your device.',
+}
+const OWN_KEY = 'compass-own'
+const ownState = () => { try { return JSON.parse(localStorage.getItem(OWN_KEY) || 'null') } catch { return null } }
+const setOwn = (v) => { try { localStorage.setItem(OWN_KEY, JSON.stringify(v)) } catch {} }
+const isOwned = () => !!ownState()
 
 /* ------------------------------------------------------------------- theming */
 /** The four Observatory skies: one design language, four pigment sets. */
@@ -183,6 +212,17 @@ function decodeResult(str) {
   return { order, choices, interests: null, lived }
 }
 
+const HISTORY_KEY = 'compass-history'
+const history_ = () => { try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') } catch { return [] } }
+const pushHistory = (code) => {
+  try {
+    const h = history_()
+    if (h[0]?.code === code) return
+    // replace same-day retakes of an identical base (order+choices) quietly
+    h.unshift({ code, ts: Date.now() })
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(h.slice(0, 6)))
+  } catch {}
+}
 const saveLast = (code) => { try { localStorage.setItem(LAST_KEY, code) } catch {} }
 const loadLast = () => { try { return decodeResult(localStorage.getItem(LAST_KEY) || '') && localStorage.getItem(LAST_KEY) } catch { return null } }
 const saveProgress = () => {
@@ -317,7 +357,8 @@ function viewWelcome() {
         <p class="fine" style="margin-top:26px">
           A reflection aid, not a verdict: prototype items, not a clinical or validated
           assessment — and no five-minute quiz can read your “true self.”
-          Your answers never leave this device. <span style="opacity:.5">· ${BUILD}</span>
+          Your answers never leave this device.<br>
+          Built by ${OWNER.name} — ${OWNER.line} <span style="opacity:.5">· ${BUILD}</span>
         </p>
       </div>
     </section>`)
@@ -814,8 +855,11 @@ const ACTION_HINTS = {
 }
 
 function computeProfile() {
-  const ranking = scoreRanking(state.order)
-  const maxdiff = scoreMaxDiff(MAXDIFF_BLOCKS, state.choices)
+  return computeProfileFor(state.order, state.choices)
+}
+function computeProfileFor(order, choices) {
+  const ranking = scoreRanking(order)
+  const maxdiff = scoreMaxDiff(MAXDIFF_BLOCKS, choices)
   return buildProfile({ tiers: ranking, maxdiff })
 }
 
@@ -833,7 +877,7 @@ function viewResults() {
 
   // Persist + permalink: the URL fragment IS the result (nothing leaves the device).
   const code = encodeResult({ order: state.order, choices: state.choices, interests: state.interestAnswers, lived: state.lived })
-  if (!state.shared) saveLast(code)
+  if (!state.shared) { saveLast(code); pushHistory(code) }
   try { history.replaceState(null, '', `#r=${code}`) } catch {}
 
   /* ---- convergence & confidence ---- */
@@ -856,6 +900,45 @@ function viewResults() {
   const crownHtml = crown.balanced
     ? `<p class="id-crown">Balanced across directions — no single pull to name, and that's a real result.</p>`
     : `<p class="id-crown">${crown.lead} — you'd sooner lose <span style="color:${valueInk(crown.bottomId)}">${crown.bottomNoun}</span> than <span style="color:${valueInk(crown.topId)}">${crown.topNoun}</span>.</p>`
+
+  /* ---- Own it: the one thing for sale (or the owned suite) ---- */
+  const owned = isOwned()
+  const showOffer = !owned && OWN.payLink && !state.shared
+  let ownHtml = ''
+  if (owned && !state.shared) {
+    const preview = ownState()?.preview
+    ownHtml = `
+      <div class="own-card owned">
+        <div class="own-k">Yours${preview ? ' · preview mode' : ''}</div>
+        <div class="own-body">
+          <div class="plate-thumb" data-plate-thumb aria-hidden="true"></div>
+          <div class="own-acts">
+            <input class="own-inscribe" data-inscribe maxlength="90" placeholder="Optional inscription for your plate (stays on this device)" aria-label="Plate inscription">
+            <div class="own-btns">
+              <button class="btn" data-own-plate>Download your plate</button>
+              <button class="btn ghost" data-own-appendix>Methodology appendix</button>
+              <button class="btn ghost" data-own-json>Receipts (JSON)</button>
+              <button class="btn ghost" data-own-ics>6-month revisit → calendar</button>
+            </div>
+            <p class="scene-fine">Print the plate at up to A3. The appendix opens as a page — print it to PDF. Everything is generated on this device.</p>
+          </div>
+        </div>
+      </div>`
+  } else if (showOffer) {
+    ownHtml = `
+      <div class="own-card">
+        <div class="own-k">Own it</div>
+        <p class="own-flex">Everything on this page is the whole report — free, forever. Nothing blurred, nothing held back.</p>
+        <p class="own-pitch">One thing is for sale: <strong>ownership</strong>. Your result set as a print-grade star-chart plate,
+        the signed receipts behind every number, and a six-month revisit that shows what actually moved.</p>
+        <div class="own-btns">
+          <a class="btn" href="${OWN.payLink}" rel="noopener">Own it — ${OWN.price}, one tap</a>
+          <button class="btn ghost" data-own-peek>See the plate first</button>
+        </div>
+        <div class="plate-thumb own-peek" data-plate-thumb hidden aria-hidden="true"></div>
+        <p class="scene-fine">Apple Pay / Google Pay — no account, no email, no form. The unlock lives in this browser only.</p>
+      </div>`
+  }
 
   /* ---- Scene 1: YOUR COMPASS — shape first, then the vivid line, then honesty ---- */
   const chip = (id) => `<span class="chip conf-${profile.valueConfidence[id]}"><span class="d"></span>${CONF_LABEL[profile.valueConfidence[id]]}</span>`
@@ -896,6 +979,7 @@ function viewResults() {
         <div class="drivers" style="text-align:left">${drivers}</div>
         <p class="scene-fine">${provenance}</p>
         <p class="scene-fine">${convLine}</p>
+        ${ownHtml}
       </div>
       <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
     </section>`
@@ -1116,6 +1200,30 @@ function viewResults() {
       </div>`
   }
 
+  // ---- the revisit: honest before/after against your own history ----
+  let revisitHtml = ''
+  if (owned && !state.shared) {
+    const prev = history_().find((h) => h.code !== code)
+    if (prev) {
+      const decodedPrev = decodeResult(prev.code)
+      if (decodedPrev) {
+        const prevProfile = computeProfileFor(decodedPrev.order, decodedPrev.choices)
+        const prevRank = Object.fromEntries(prevProfile.ranked.map((id, i) => [id, i]))
+        const nowRank = Object.fromEntries(profile.ranked.map((id, i) => [id, i]))
+        const moves = VALUE_IDS
+          .map((id) => ({ id, d: prevRank[id] - nowRank[id], from: prevRank[id] + 1, to: nowRank[id] + 1 }))
+          .filter((m) => Math.abs(m.d) >= 3)
+          .sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
+        const when = new Date(prev.ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+        revisitHtml = moves.length
+          ? `<div class="ipanel" id="revisit"><h4>Since ${when}</h4><ul>
+              ${moves.slice(0, 3).map((m) => `<li><strong style="color:${valueInk(m.id)}">${valueById(m.id).name}</strong> moved ${m.d > 0 ? 'up' : 'down'} — #${m.from} → #${m.to}. A move this size is worth sitting with.</li>`).join('')}
+            </ul><p class="scene-fine" style="margin-top:10px">Rank moves of one or two places are usually measurement noise — we only surface shifts of three or more.</p></div>`
+          : `<div class="ipanel good" id="revisit"><h4>Since ${when}</h4><p class="scene-fine">Your compass held steady — no value moved more than measurement noise. Stability is a finding too.</p></div>`
+      }
+    }
+  }
+
   const sceneClose = `
     <section class="scene scene-close">
       <div class="scene-inner">
@@ -1123,6 +1231,7 @@ function viewResults() {
         <h2 class="scene-h2">Where you'll feel the pull</h2>
         ${tensions}
         ${gapHtml}
+        ${revisitHtml}
         <div class="disclaimer">
           <p class="scene-fine">
             <strong>A mirror, not a verdict.</strong> A prototype built on the Schwartz circumplex — not a personality
@@ -1138,6 +1247,7 @@ function viewResults() {
           </div>
           <p class="scene-fine" style="margin-top:8px">The link holds only your answers — nothing is stored on any server.</p>`}
           <p class="scene-fine" style="margin-top:14px"><a href="../docs/RESEARCH_values-to-career-and-partner.md" target="_blank" rel="noopener">The research behind this →</a></p>
+          <p class="scene-fine own-footer">Built by ${OWNER.name} — ${OWNER.line}</p>
         </div>
       </div>
     </section>`
@@ -1195,6 +1305,47 @@ function viewResults() {
       prompt('Copy this link:', location.href)
     }
   })
+  // ---- Own it: plate preview + downloads (all client-side) ----
+  const plateData = async (inscription) => ({
+    profile,
+    crownText: root.querySelector('.id-crown')?.textContent || identity.headline,
+    epithet: sig ? sig.epithet : null,
+    code,
+    fingerprint: await fingerprintOf(code),
+    dateLabel: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+    inscription: inscription || '',
+  })
+  const renderThumb = async () => {
+    const holder = root.querySelector('[data-plate-thumb]')
+    if (!holder) return
+    holder.innerHTML = buildPlateSVG(await plateData(root.querySelector('[data-inscribe]')?.value))
+    holder.hidden = false
+  }
+  if (root.querySelector('.own-card.owned')) renderThumb()
+  root.querySelector('[data-own-peek]')?.addEventListener('click', renderThumb)
+  root.querySelector('[data-inscribe]')?.addEventListener('change', renderThumb)
+  root.querySelector('[data-own-plate]')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget
+    btn.disabled = true; btn.textContent = 'Rendering…'
+    try {
+      const svg = buildPlateSVG(await plateData(root.querySelector('[data-inscribe]')?.value))
+      const png = await plateToPNG(svg)
+      downloadBlob(png, `compass-plate-${(await fingerprintOf(code)).slice(0, 8)}.png`)
+      btn.textContent = 'Downloaded ✓'
+    } catch { btn.textContent = 'Failed — try again' }
+    setTimeout(() => { btn.disabled = false; btn.textContent = 'Download your plate' }, 1600)
+  })
+  root.querySelector('[data-own-appendix]')?.addEventListener('click', async () => {
+    openAppendix({ code, fingerprint: await fingerprintOf(code), build: BUILD, profile, career, dateLabel: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) })
+  })
+  root.querySelector('[data-own-json]')?.addEventListener('click', async () => {
+    const payload = receiptsJSON({ code, fingerprint: await fingerprintOf(code), build: BUILD, profile, order: state.order, choices: state.choices, interests: Object.keys(state.interestAnswers).length ? state.interestAnswers : null, career })
+    downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), `compass-receipts-${(await fingerprintOf(code)).slice(0, 8)}.json`)
+  })
+  root.querySelector('[data-own-ics]')?.addEventListener('click', () => {
+    downloadBlob(revisitICS(location.href), 'compass-revisit.ics')
+  })
+
   // Instrument needles swing to their reading when the gauges scroll into view.
   const reducedMotion = prefersReduced()
   root.querySelectorAll('.gauge-svg').forEach((g) => {
@@ -1266,6 +1417,17 @@ if (themeSel) {
     render()
     setTimeout(() => html.classList.remove('theme-animating'), 520)
   })
+}
+
+// Boot: #own=paid arrives from the payment success URL; #own=preview lets the
+// owner test the full unlocked suite before the payment link exists.
+const ownHash = /[#&]own=(paid|preview)\b/.exec(location.hash || '')
+if (ownHash) {
+  setOwn({ ts: Date.now(), ...(ownHash[1] === 'preview' ? { preview: true } : {}) })
+  const last = loadLast()
+  const r = last && decodeResult(last)
+  if (r) Object.assign(state, { step: 'results', order: r.order, choices: r.choices, interestAnswers: r.interests || {}, lived: r.lived, shared: false })
+  try { history.replaceState(null, '', last ? `#r=${last}` : location.pathname) } catch {}
 }
 
 // Boot: a #r=… fragment IS a result (shared link or saved permalink) — decode

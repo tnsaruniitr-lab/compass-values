@@ -2,10 +2,10 @@
 /* Compass service worker — network-first with offline cache fallback.
    Served from the site root with Service-Worker-Allowed: / so it can also
    cache the /engine modules that live outside /web. */
-const CACHE = 'compass-v8'
+const CACHE = 'compass-v9'
 const SHELL = [
   '/web/', '/web/index.html', '/web/styles.css', '/web/app.js', '/web/circumplex.js',
-  '/web/archetypeArt.js', '/web/manifest.webmanifest', '/web/icon.svg',
+  '/web/archetypeArt.js', '/web/plate.js', '/web/receipts.js', '/web/manifest.webmanifest', '/web/icon.svg',
   '/web/icon-192.png', '/web/icon-512.png', '/web/apple-touch-icon.png',
   '/engine/index.js', '/engine/values.js',
   '/engine/maxdiffBlocks.js', '/engine/scoring.js', '/engine/interests.js',

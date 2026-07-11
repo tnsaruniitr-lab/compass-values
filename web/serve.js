@@ -38,7 +38,7 @@ const MIME = {
 const COMPRESSIBLE = new Set(['.html', '.css', '.js', '.json', '.webmanifest', '.svg', '.md', '.txt'])
 
 const SECURITY_HEADERS = {
-  'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'",
+  'Content-Security-Policy': "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'",
   'Strict-Transport-Security': 'max-age=31536000',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',

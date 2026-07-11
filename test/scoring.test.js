@@ -159,3 +159,15 @@ test('quadrantForAngle maps cardinal apexes correctly', () => {
   assert.equal(quadrantForAngle(180), 'openness')
   assert.equal(quadrantForAngle(0), 'conservation')
 })
+
+test('buildProfile exposes named per-signal z-scores for the receipts', () => {
+  const tiers = scoreTiers({ benevolence: 'most', power: 'least' })
+  const r = makeRespondent(ARCHETYPES.caregiver)
+  const maxdiff = scoreMaxDiff(MAXDIFF_BLOCKS, r.maxdiffChoices)
+  const profile = buildProfile({ tiers, maxdiff })
+  assert.ok(profile.signals.ranking && profile.signals.maxdiff, 'both signals named')
+  assert.equal(typeof profile.signals.ranking.benevolence, 'number')
+  // combined is the mean of the exposed signals — receipts math must reconcile
+  const mean2 = (profile.signals.ranking.benevolence + profile.signals.maxdiff.benevolence) / 2
+  assert.ok(Math.abs(profile.combined.benevolence - mean2) < 1e-9)
+})

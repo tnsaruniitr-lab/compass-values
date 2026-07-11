@@ -119,9 +119,12 @@ export function scoreRanking(orderedIds = []) {
  */
 export function buildProfile({ portrait = null, maxdiff = null, tiers = null } = {}) {
   const zSignals = []
-  if (portrait && portrait.answered) zSignals.push(zmap(portrait.centered))
-  if (maxdiff && maxdiff.answered) zSignals.push(zmap(maxdiff.bw))
-  if (tiers && tiers.answered) zSignals.push(zmap(tiers.scores))
+  /** Named per-signal z-scores — exposed for the receipts/appendix so a user
+   *  can see exactly where their two answers agreed and where they split. */
+  const signals = {}
+  if (portrait && portrait.answered) { const z = zmap(portrait.centered); zSignals.push(z); signals.portrait = z }
+  if (maxdiff && maxdiff.answered) { const z = zmap(maxdiff.bw); zSignals.push(z); signals.maxdiff = z }
+  if (tiers && tiers.answered) { const z = zmap(tiers.scores); zSignals.push(z); signals.ranking = z }
   if (!zSignals.length) throw new Error('buildProfile: no signals provided')
 
   /** @type {Record<string, number>} */ const combined = {}
@@ -199,6 +202,7 @@ export function buildProfile({ portrait = null, maxdiff = null, tiers = null } =
     higher,
     dominantHigher,
     higherMargin,
+    signals,
     convergence,
     valueConfidence,
     tensions,
