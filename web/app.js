@@ -16,7 +16,7 @@ const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
 // Bump this every deploy — shown on the welcome screen so you can verify which
 // build is actually live (helps tell deploy/CDN/service-worker staleness apart).
-const BUILD = 'b14 · own-it'
+const BUILD = 'b15 · full-observatory'
 try { console.info('%cCompass ' + BUILD, 'color:#5eead4;font-weight:600') } catch {}
 try { document.documentElement.dataset.build = BUILD } catch {}
 
@@ -334,13 +334,30 @@ function burst(cx, cy, color) {
 }
 
 /* ------------------------------------------------------------------- welcome */
+/** A pleasing demonstration constellation for the landing hero — decorative,
+ *  clearly not the visitor's data (theirs gets drawn after the sitting). */
+const HERO_DEMO_PROFILE = (() => {
+  const combined = {
+    self_direction: 1.35, stimulation: 0.55, hedonism: 0.1, achievement: -0.45,
+    power: -1.3, security: -0.35, conformity: -1.0, tradition: -0.15,
+    benevolence: 1.15, universalism: 0.8,
+  }
+  return {
+    combined,
+    top: ['self_direction', 'benevolence', 'universalism'],
+    ranked: Object.keys(combined).sort((a, b) => combined[b] - combined[a]),
+    circumplex: { angle: 118, magnitude: 1.6 },
+  }
+})()
+
 function viewWelcome() {
   const last = loadLast()
   const progress = loadProgress()
   const node = mount(`
-    <section class="view">
-      <div class="card">
-        <div class="eyebrow">Compass · self-discovery</div>
+    <section class="view view-hero">
+      <div class="hero-inner">
+        <div class="eyebrow hero-eyebrow">Compass · self-discovery</div>
+        <div class="hero-shape hero-demo" aria-hidden="true">${renderCircumplex(HERO_DEMO_PROFILE, { theme })}</div>
         <h1 class="display">The values test that <em>shows its work</em></h1>
         <p class="lede">
           A first honest map of your priorities — what you'd keep and what you'd
@@ -348,19 +365,20 @@ function viewWelcome() {
           You'll sort, then make real trade-offs; we cross-check the two and
           <strong>show you our confidence</strong>, including where we're unsure.
         </p>
-        <div class="btn-row">
-          <button class="btn" data-begin>Begin →</button>
-          <span class="fine">~4 minutes · a sort + 10 trade-offs</span>
+        <div class="btn-row hero-cta">
+          <button class="btn" data-begin>Begin your observation →</button>
+          <span class="fine">~5 minutes · a sort, ten trade-offs, twelve quick questions</span>
         </div>
         ${progress ? '<p class="fine" style="margin-top:14px"><button class="linklike" data-resume>Resume where you left off →</button></p>' : ''}
-        ${last ? '<p class="fine" style="margin-top:6px"><button class="linklike" data-last>View your last result →</button></p>' : ''}
-        <p class="fine" style="margin-top:26px">
+        ${last ? '<p class="fine" style="margin-top:6px"><button class="linklike" data-last>View your last observation →</button></p>' : ''}
+        <p class="fine hero-fine">
           A reflection aid, not a verdict: prototype items, not a clinical or validated
           assessment — and no five-minute quiz can read your “true self.”
           Your answers never leave this device.<br>
           Built by ${OWNER.name} — ${OWNER.line} <span style="opacity:.5">· ${BUILD}</span>
         </p>
       </div>
+      <div class="scroll-cue" aria-hidden="true">begin ↓</div>
     </section>`)
   node.querySelector('[data-begin]').addEventListener('click', () => go('primer'))
   node.querySelector('[data-resume]')?.addEventListener('click', () => {
@@ -940,6 +958,14 @@ function viewResults() {
       </div>`
   }
 
+  /* ---- observation number: honestly derived from this browser's history ---- */
+  const histIdx = history_().findIndex((h) => h.code === code)
+  const obsLabel = state.shared
+    ? 'A shared observation'
+    : histIdx >= 0
+      ? `Compass · Observation № ${history_().length - histIdx}`
+      : 'Compass · Observation'
+
   /* ---- Scene 1: YOUR COMPASS — shape first, then the vivid line, then honesty ---- */
   const chip = (id) => `<span class="chip conf-${profile.valueConfidence[id]}"><span class="d"></span>${CONF_LABEL[profile.valueConfidence[id]]}</span>`
   const drivers = profile.ranked.slice(0, 3).map((id, i) => {
@@ -971,7 +997,7 @@ function viewResults() {
   const sceneIdentity = `
     <section class="scene scene-identity scene-hero" style="--accent:${idColor}">
       <div class="scene-inner center">
-        <div class="eyebrow">Your compass</div>
+        <div class="eyebrow">${obsLabel}</div>
         <div class="hero-shape" role="img" aria-label="Your values map. Top values: ${identity.traits.join(', ')}.">${renderCircumplex(profile, { theme })}</div>
         ${crownHtml}
         <h1 class="id-name" style="font-size:clamp(26px,5vw,40px)">${identity.headline}</h1>
