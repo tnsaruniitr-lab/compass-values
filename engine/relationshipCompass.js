@@ -61,7 +61,7 @@ export const DIMENSIONS = [
         ? 'You lean toward closeness and a tightly shared life.'
         : 'You want closeness and some breathing room in roughly equal measure.',
     talk: (s) => s === 'right'
-      ? 'Look for someone who doesn’t read needing space as rejection.'
+      ? 'Say early what space means to you — needing room isn’t rejection, but unnamed it reads that way.'
       : s === 'left'
         ? 'Be clear that you value togetherness, and check it doesn’t tip into losing yourself.'
         : 'Name where your need for space and closeness sits — it shifts under stress.',
@@ -86,9 +86,15 @@ export const DIMENSIONS = [
     title: 'Shared Meaning',
     left: 'Few fixed commitments',
     right: 'Strong worldview & values',
-    compute: (p) => (p.combined.tradition + p.combined.universalism) / 2,
-    reflect: (s) => s === 'right'
-      ? 'You hold a strong worldview — tradition and/or a sense of what’s right run deep.'
+    // Worldview strength = the STRONGER pole, not the average: tradition and
+    // universalism sit on opposite sides of the circle, so averaging them
+    // cancels for exactly the polarized-worldview people this axis exists for
+    // (a devout traditionalist with low universalism averaged out to "center").
+    compute: (p) => Math.max(p.combined.tradition, p.combined.universalism),
+    reflect: (s, p) => s === 'right'
+      ? (p && (p.combined.tradition >= p.combined.universalism)
+        ? 'Your worldview runs deep — anchored in tradition, faith, and where you come from.'
+        : 'Your worldview runs deep — anchored in fairness and what’s right for everyone.')
       : s === 'left'
         ? 'You hold your commitments loosely and stay open on questions of meaning.'
         : 'You have views on meaning without being rigid about them.',
@@ -107,8 +113,8 @@ export const DIMENSIONS = [
         ? 'You guard your own energy and don’t over-extend by default.'
         : 'You give generously but keep some boundaries.',
     talk: (s) => s === 'right'
-      ? 'Watch for over-giving — look for reciprocity, not just someone who lets you care for them.'
-      : 'Make sure a partner doesn’t need more day-to-day tending than you want to give.',
+      ? 'Watch for over-giving — notice whether care flows back, and ask for it rather than waiting.'
+      : 'Say what day-to-day tending you’re happy to give, so it isn’t discovered by disappointment.',
   },
 ]
 
@@ -127,54 +133,61 @@ export function relationshipCompass(profile) {
       right: d.right,
       value,
       side,
-      reflection: d.reflect(side),
-      talk: d.talk(side),
+      reflection: d.reflect(side, profile),
+      talk: d.talk(side, profile),
     }
   })
 }
 
-/** Per-dimension "what fits you in love" phrasing — reflective, not predictive. */
-const LOVE_MAP = {
+/**
+ * Per-dimension first-person NOTICING prompts — how your own lean tends to
+ * show up in a relationship, phrased so the reader can catch it happening.
+ * Deliberately NOT partner-selection advice ("look for…" / "be wary of…"):
+ * pre-meeting values predict ≈0% of dyad compatibility, so prescriptions
+ * would cross the module's own Finkel firewall. No clinical vocabulary.
+ */
+const NOTICE_MAP = {
   stability_adventure: {
-    right: { look: 'someone open to spontaneity who won’t tie you to one routine', wary: 'a partner who needs everything predictable' },
-    left: { look: 'someone who wants a settled, dependable life with you', wary: 'a partner who keeps uprooting things' },
+    right: 'you may experience a partner’s need for routine as confinement — say how much change you need before it becomes friction',
+    left: 'you may experience a partner’s spontaneity as instability — name the anchors you need rather than bracing against change',
   },
   independence_togetherness: {
-    right: { look: 'a partner secure enough to give you space without taking it personally', wary: 'someone who reads your independence as rejection' },
-    left: { look: 'someone who wants a closely shared, interwoven life', wary: 'a distant or avoidant partner' },
+    right: 'you may read a partner’s wish for closeness as pressure — and they may read your need for room as distance; say what space means to you early',
+    left: 'you may read a partner’s need for room as distance — name the closeness you need instead of testing for it',
   },
   ambition_connection: {
-    right: { look: 'a partner who respects your drive and brings their own', wary: 'someone who’ll quietly resent your ambition' },
-    left: { look: 'a partner who puts the relationship first, the way you do', wary: 'someone who chooses status over the relationship' },
+    right: 'your drive can read as absence to a partner — talk about how work and the relationship rank before it bites',
+    left: 'you may quietly resent a partner’s ambition if it goes unnamed — ask early how they rank work and home',
   },
   shared_meaning: {
-    right: { look: 'someone who shares your core worldview and sense of what matters', wary: 'deep worldview or values mismatches — name them early' },
-    left: { look: 'an easy-going partner who won’t impose a worldview on you', wary: 'a partner with rigid expectations about beliefs or tradition' },
+    right: 'worldview runs deep for you — surface politics, faith, and “what we’re for” early, not late',
+    left: 'you sit lightly on questions of meaning — check you can live alongside someone with firmer commitments',
   },
   caretaking: {
-    right: { look: 'a partner who returns your care rather than just receiving it', wary: 'a one-way dynamic where you give and give' },
-    left: { look: 'a partner who tends their own emotional needs', wary: 'a high-maintenance dynamic that drains you' },
+    right: 'you tend to over-give — notice whether care flows back, and ask for it rather than waiting',
+    left: 'you guard your energy — say what tending you’re happy to give, so it isn’t discovered by disappointment',
   },
 }
 
 /**
- * "Love, your way" — a synthesized, concrete (but non-predictive) read on the
- * partner dynamics that tend to fit you, what to look for, and what to watch.
+ * "Love, your way" — a synthesized, reflective (never predictive) read on how
+ * your values tend to show up in love: what to notice about yourself, and
+ * what's worth naming out loud with a real partner.
  * @param {{combined:Record<string,number>, higher:Record<string,number>}} profile
  */
 export function loveInsights(profile) {
   const ranked = [...relationshipCompass(profile)].sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
   const strong = ranked.filter((d) => d.side !== 'center')
   const sideKey = (d) => (d.side === 'right' ? 'right' : 'left')
-  const lookFor = strong.slice(0, 3).map((d) => LOVE_MAP[d.key][sideKey(d)].look)
-  const beWary = strong.slice(0, 2).map((d) => LOVE_MAP[d.key][sideKey(d)].wary)
+  const noticing = strong.slice(0, 3).map((d) => NOTICE_MAP[d.key][sideKey(d)])
+  const talk = ranked.slice(0, 3).map((d) => d.talk)
   const summary = strong.length
     ? `${strong[0].reflection} ${strong[1] ? strong[1].reflection : ''}`.trim()
     : 'You bring a balanced, flexible presence to relationships — no single pull dominates how you connect.'
   return {
     summary,
-    lookFor: lookFor.length ? lookFor : ['a partner who meets you with openness and honesty'],
-    beWary: beWary.length ? beWary : ['drifting on autopilot without naming what you each need'],
+    noticing: noticing.length ? noticing : ['no single pattern dominates — your flexibility is the thing to name, so a partner knows where you flex by choice'],
+    talk,
   }
 }
 

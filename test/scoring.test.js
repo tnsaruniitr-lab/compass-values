@@ -2,9 +2,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  VALUE_IDS, PORTRAIT_ITEMS, MAXDIFF_BLOCKS, OPPOSING_PAIRS,
+  VALUE_IDS, MAXDIFF_BLOCKS, OPPOSING_PAIRS,
   scorePortrait, scoreMaxDiff, scoreTiers, scoreRanking, buildProfile, analyze, quadrantForAngle, valueById,
 } from '../engine/index.js'
+import { PORTRAIT_ITEMS } from '../engine/portraitItems.js'
 import { makeRespondent, ARCHETYPES } from '../demo/synthetic.js'
 
 test('scoreTiers: most=+1, least=−1, neutral=0; answered counts placements', () => {
@@ -59,6 +60,25 @@ test('maxdiff block design is balanced (each value appears 4×, blocks size 4)',
     for (const v of b.valueIds) count[v]++
   }
   for (const id of VALUE_IDS) assert.equal(count[id], 4, `${id} appears 4×`)
+})
+
+test('maxdiff blocks force DIRECT OPPOSITES to compete (each opposing pair co-occurs 2×)', () => {
+  for (const [a, b] of OPPOSING_PAIRS) {
+    const together = MAXDIFF_BLOCKS.filter((blk) => blk.valueIds.includes(a) && blk.valueIds.includes(b)).length
+    assert.equal(together, 2, `${a} vs ${b} should share exactly 2 blocks (got ${together})`)
+  }
+})
+
+test('three signals → convergence is mean pairwise r (not silently null) and confidence spans all signals', () => {
+  const r = makeRespondent(ARCHETYPES.caregiver)
+  const portrait = scorePortrait(PORTRAIT_ITEMS, r.portraitResponses)
+  const maxdiff = scoreMaxDiff(MAXDIFF_BLOCKS, r.maxdiffChoices)
+  const tiers = scoreTiers({ benevolence: 'most', universalism: 'most', power: 'least', achievement: 'least' })
+  const profile = buildProfile({ portrait, maxdiff, tiers })
+  assert.equal(profile.signalCount, 3)
+  assert.ok(profile.convergence != null && profile.convergence > 0.3, `3-signal convergence ${profile.convergence}`)
+  assert.ok(['high', 'medium', 'low'].includes(profile.valueConfidence.benevolence))
+  assert.ok(typeof profile.higherMargin === 'number' && profile.higherMargin >= 0)
 })
 
 test('portrait centering: centred scores sum to ~0', () => {

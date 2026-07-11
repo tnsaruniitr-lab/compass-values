@@ -1,6 +1,6 @@
 // @ts-check
 /** Renders the values circumplex as an animated SVG. Pure string output. */
-import { VALUES, VALUE_BY_ID, HIGHER_ORDER_META, HIGHER_ORDER_DEEP } from '../engine/index.js'
+import { VALUES, VALUE_BY_ID, HIGHER_ORDER_META, HIGHER_ORDER_DEEP, VALUE_INK } from '../engine/index.js'
 
 /** Per-theme drawing palette. */
 const PALETTES = {
@@ -61,6 +61,8 @@ const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x))
 export function renderCircumplex(profile, opts = {}) {
   const P = PALETTES[opts.theme] || PALETTES.dark
   const hoColor = (id) => (P.deepHO ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
+  // On light palettes, top-value LABEL text uses the deep legible ink (dots stay neon).
+  const valueInk = (id) => (P.deepHO ? (VALUE_INK[id] || VALUE_BY_ID[id].color) : VALUE_BY_ID[id].color)
   const lo = -1.6; const hi = 1.6
   const radiusFor = (c) => (0.16 + 0.82 * clamp((c - lo) / (hi - lo), 0, 1)) * R
 
@@ -101,14 +103,14 @@ export function renderCircumplex(profile, opts = {}) {
     const [lx, ly] = pt(v.angle, labelR)
     const anchor = onAxis ? 'middle' : lx < C - 12 ? 'end' : lx > C + 12 ? 'start' : 'middle'
     const isTop = profile.top.includes(v.id)
-    const labelColor = isTop ? v.color : P.mutedLabel
+    const labelColor = isTop ? valueInk(v.id) : P.mutedLabel
     const labelWeight = isTop ? 600 : 400
     return `
       <g class="circ-node" style="animation-delay:${(1.1 + i * 0.05).toFixed(2)}s">
         <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="${rad.toFixed(1)}" fill="${v.color}" opacity="${(0.45 + emphasis * 0.55).toFixed(2)}"/>
         <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="${(rad + 2.5).toFixed(1)}" fill="none" stroke="${v.color}" stroke-width="1" opacity="${(emphasis * 0.5).toFixed(2)}"/>
         <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="middle"
-              font-size="12.5" font-weight="${labelWeight}" fill="${labelColor}" font-family="Inter, sans-serif">${v.name}</text>
+              font-size="15" font-weight="${labelWeight}" fill="${labelColor}" font-family="Inter, sans-serif">${v.name}</text>
       </g>`
   }).join('')
 
@@ -118,12 +120,15 @@ export function renderCircumplex(profile, opts = {}) {
   const apexLabels = Object.entries(HIGHER_ORDER_META).map(([id]) => {
     const [x, y] = pt(HIGHER_ORDER_META[id].apex, R + 50)
     return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="middle"
-       font-size="11" letter-spacing="1.6" font-weight="700" fill="${hoColor(id)}" opacity="${P.deepHO ? '1' : '0.9'}"
+       font-size="12.5" letter-spacing="1.6" font-weight="700" fill="${hoColor(id)}" opacity="${P.deepHO ? '1' : '0.9'}"
        font-family="Inter, sans-serif">${SHORT[id]}</text>`
   }).join('')
 
-  // Dominant direction vector
-  const vmag = clamp(profile.circumplex.magnitude / 4, 0.18, 1) * R * 0.92
+  // Dominant direction vector — GATED on magnitude: a near-directionless
+  // profile gets no arrow (the old 18%-minimum drew confident direction from
+  // zero-magnitude data — exactly the pseudo-precision the plan forbids).
+  const showVector = profile.circumplex.magnitude >= 0.5
+  const vmag = clamp(profile.circumplex.magnitude / 4, 0, 1) * R * 0.92
   const [vx, vy] = pt(profile.circumplex.angle, vmag)
 
   return `
@@ -151,11 +156,11 @@ export function renderCircumplex(profile, opts = {}) {
 
       <path class="circ-blob" d="${blobPath}" fill="url(#blobFill)" stroke="${P.blobStroke}" stroke-width="1.5" stroke-opacity="${P.blobStrokeOp}" filter="url(#glow)"/>
 
-      <g filter="url(#glow)">
+      ${showVector ? `<g filter="url(#glow)">
         <line class="circ-vector" x1="${C}" y1="${C}" x2="${vx.toFixed(1)}" y2="${vy.toFixed(1)}"
               stroke="url(#vecGrad)" stroke-width="3" stroke-linecap="round" pathLength="1"/>
         <circle cx="${vx.toFixed(1)}" cy="${vy.toFixed(1)}" r="5" fill="${P.vecTip}"/>
-      </g>
+      </g>` : ''}
 
       ${nodes}
       ${apexLabels}

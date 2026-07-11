@@ -1,7 +1,8 @@
 // @ts-check
 import {
-  VALUES, VALUE_BY_ID, valueById,
-  HIGHER_ORDER_META, HIGHER_ORDER_DEEP, buildProfile, scoreRanking,
+  VALUES, VALUE_IDS, VALUE_BY_ID, valueById,
+  HIGHER_ORDER_META, HIGHER_ORDER_DEEP, VALUE_INK,
+  buildProfile, scoreRanking, scoreMaxDiff, MAXDIFF_BLOCKS,
   careerReport, workInsights, relationshipCompass, relationshipSignal, loveInsights,
   synthesizeIdentity,
 } from '../engine/index.js'
@@ -12,7 +13,7 @@ const root = /** @type {HTMLElement} */ (document.getElementById('app'))
 
 // Bump this every deploy — shown on the welcome screen so you can verify which
 // build is actually live (helps tell deploy/CDN/service-worker staleness apart).
-const BUILD = 'b9 · smooth-drag'
+const BUILD = 'b10 · honest-instrument'
 try { console.info('%cCompass ' + BUILD, 'color:#5eead4;font-weight:600') } catch {}
 try { document.documentElement.dataset.build = BUILD } catch {}
 
@@ -33,26 +34,100 @@ function applyTheme(t) {
   theme = THEMES[t] ? t : DEFAULT_THEME
   document.documentElement.dataset.theme = theme
   document.documentElement.dataset.mode = themeMode(theme)
+  document.documentElement.style.colorScheme = themeMode(theme)
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) meta.setAttribute('content', THEMES[theme].bar)
   try { localStorage.setItem('compass-theme', theme) } catch {}
 }
 /** Theme-aware higher-order colour (deeper, legible variant on light themes). */
 const hoColor = (id) => (themeMode(theme) === 'light' ? HIGHER_ORDER_DEEP[id] : HIGHER_ORDER_META[id].color)
+/** Theme-aware per-value INK: deep legible variant as text/pips on light themes,
+ *  the vivid neon on dark themes (mirrors hoColor). */
+const valueInk = (id) => (themeMode(theme) === 'light' ? (VALUE_INK[id] || valueById(id).color) : valueById(id).color)
 
+/* --------------------------------------------------------------------- state */
 const state = {
-  step: 'welcome', // welcome | sort | results
-  /** @type {string[][]} */ rounds: [[], []], // two rounds of 5; top = most important
-  roundIndex: 0,
-  moves: 0, // reorders in the current round (engagement gate)
+  step: 'welcome', // welcome | primer | sort | maxdiff | lived | results
+  /** @type {string[]} */ order: [], // full sort, top = most important
+  sortChanges: 0, // committed order changes (the honest engagement gate)
+  sortConfirmed: false, // user explicitly confirmed an unchanged order
+  blockIndex: 0,
+  /** @type {{blockId:string, best:string|null, worst:string|null}[]} */ choices: [],
+  /** @type {string[]|null} */ lived: null, // optional "reality check" sort
+  livedChanges: 0,
+  livedConfirmed: false,
+  livedJustDone: false,
+  shared: false, // true when rendering a decoded shared/saved link
 }
 
-const ROUND_SIZE = 5
-const ROUND_MIN_MOVES = 2
 const shuffle = (arr) => {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
   return a
+}
+
+/* -------------------------------------------------- persistence & permalinks */
+/**
+ * A result is fully described by ~40 small digits, so it lives in the URL
+ * fragment and localStorage — shareable and re-openable with zero backend,
+ * and nothing ever leaves the device.
+ * Format: r=1.<order:10 digits>.<choices:20 digits>[.<lived:10 digits>]
+ */
+const LAST_KEY = 'compass-last'
+const PROGRESS_KEY = 'compass-progress'
+
+const encodeOrder = (order) => order.map((id) => VALUE_IDS.indexOf(id)).join('')
+const decodeOrder = (s) => {
+  if (!/^[0-9]{10}$/.test(s)) return null
+  const order = [...s].map((d) => VALUE_IDS[Number(d)])
+  return new Set(order).size === 10 ? order : null
+}
+
+function encodeResult({ order, choices, lived }) {
+  const ch = MAXDIFF_BLOCKS.map((b) => {
+    const c = choices.find((x) => x.blockId === b.id)
+    return `${b.valueIds.indexOf(c?.best)}${b.valueIds.indexOf(c?.worst)}`
+  }).join('')
+  return `1.${encodeOrder(order)}.${ch}${lived ? '.' + encodeOrder(lived) : ''}`
+}
+
+function decodeResult(str) {
+  const m = /^1\.([0-9]{10})\.([0-9]{20})(?:\.([0-9]{10}))?$/.exec(str || '')
+  if (!m) return null
+  const order = decodeOrder(m[1])
+  if (!order) return null
+  const choices = []
+  for (let i = 0; i < MAXDIFF_BLOCKS.length; i++) {
+    const b = MAXDIFF_BLOCKS[i]
+    const bi = Number(m[2][i * 2]); const wi = Number(m[2][i * 2 + 1])
+    if (bi > 3 || wi > 3 || bi === wi) return null
+    choices.push({ blockId: b.id, best: b.valueIds[bi], worst: b.valueIds[wi] })
+  }
+  const lived = m[3] ? decodeOrder(m[3]) : null
+  if (m[3] && !lived) return null
+  return { order, choices, lived }
+}
+
+const saveLast = (code) => { try { localStorage.setItem(LAST_KEY, code) } catch {} }
+const loadLast = () => { try { return decodeResult(localStorage.getItem(LAST_KEY) || '') && localStorage.getItem(LAST_KEY) } catch { return null } }
+const saveProgress = () => {
+  try {
+    if (state.step === 'sort' || state.step === 'maxdiff') {
+      localStorage.setItem(PROGRESS_KEY, JSON.stringify({
+        step: state.step, order: state.order, sortChanges: state.sortChanges,
+        sortConfirmed: state.sortConfirmed, blockIndex: state.blockIndex, choices: state.choices,
+      }))
+    } else if (state.step === 'welcome' || state.step === 'results') {
+      localStorage.removeItem(PROGRESS_KEY)
+    }
+  } catch {}
+}
+const loadProgress = () => {
+  try {
+    const p = JSON.parse(localStorage.getItem(PROGRESS_KEY) || 'null')
+    if (p && (p.step === 'sort' || p.step === 'maxdiff') && decodeOrder(encodeOrder(p.order))) return p
+  } catch {}
+  return null
 }
 
 /* ------------------------------------------------------------------- helpers */
@@ -60,20 +135,25 @@ function mount(html) {
   root.innerHTML = html
   return root.firstElementChild
 }
-function go(step, patch = {}) { Object.assign(state, patch, { step }); render() }
+function go(step, patch = {}) { Object.assign(state, patch, { step }); saveProgress(); render() }
 
-function topbar(onBack) {
-  const roundFrac = Math.min(state.moves, ROUND_MIN_MOVES) / ROUND_MIN_MOVES
-  const pct = Math.round(((state.roundIndex + roundFrac) / 2) * 100)
+/** Flow progress: primer → sort → 10 trade-offs → results. */
+function flowPct() {
+  if (state.step === 'primer') return 4
+  if (state.step === 'sort') return 8 + Math.min(state.sortChanges, 3) * 6
+  if (state.step === 'maxdiff') return 30 + Math.round((state.blockIndex / MAXDIFF_BLOCKS.length) * 65)
+  if (state.step === 'lived') return 60
+  return 100
+}
+function topbar(onBack, counter = '') {
   return `
     <div class="topbar">
       ${onBack ? '<button class="backlink" data-back>← Back</button>' : '<span style="width:48px"></span>'}
-      <div class="progress"><i style="width:${pct}%"></i></div>
-      <span class="counter">Round ${state.roundIndex + 1} of 2</span>
+      <div class="progress"><i style="width:${flowPct()}%"></i></div>
+      <span class="counter">${counter}</span>
     </div>`
 }
 
-/* ----------------------------------------------------- micro-feedback (spark) */
 /** A relevant emoji per value — small illustrations that bring the items alive. */
 const VALUE_ICON = {
   self_direction: '🧭', stimulation: '⚡', hedonism: '🍒', achievement: '🏆',
@@ -93,20 +173,14 @@ const SPARK_LINES = {
   benevolence: ['Care, first.', 'Your people matter.', 'A caring heart.'],
   universalism: ['For everyone.', 'A fairer world.', 'Big-hearted, that.'],
 }
-const LOW_LINES = ['Not so much, noted.', 'Less your thing.', 'Fair enough.']
-const MID_LINES = ['Noted.', 'Got it.', 'Mm-hm.']
 const pickOne = (a) => a[Math.floor(Math.random() * a.length)]
 const prefersReduced = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** Pop a small, value-relevant toast (+ particle burst) at a point, then fade. */
-function spark(rect, valueId, tone = 'embrace') {
+function spark(rect, valueId) {
   if (!rect) return
   const v = valueById(valueId)
   const color = (v && v.color) || '#a78bfa'
-  const icon = VALUE_ICON[valueId] || '✨'
-  const msg = tone === 'low' ? pickOne(LOW_LINES)
-    : tone === 'mid' ? pickOne(MID_LINES)
-      : pickOne(SPARK_LINES[valueId] || MID_LINES)
   const cx = Math.max(72, Math.min(window.innerWidth - 72, rect.left + rect.width / 2))
   const cy = rect.top
 
@@ -115,7 +189,7 @@ function spark(rect, valueId, tone = 'embrace') {
   toast.style.left = `${cx}px`
   toast.style.top = `${cy}px`
   toast.style.setProperty('--c', color)
-  toast.innerHTML = `<span class="spark-ic">${icon}</span><span>${msg}</span>`
+  toast.innerHTML = `<span class="spark-ic">${VALUE_ICON[valueId] || '✨'}</span><span>${pickOne(SPARK_LINES[valueId] || ['Noted.'])}</span>`
   document.body.appendChild(toast)
 
   if (!prefersReduced()) burst(cx, cy, color)
@@ -144,56 +218,102 @@ function burst(cx, cy, color) {
 
 /* ------------------------------------------------------------------- welcome */
 function viewWelcome() {
+  const last = loadLast()
+  const progress = loadProgress()
   const node = mount(`
     <section class="view">
       <div class="card">
         <div class="eyebrow">Compass · self-discovery</div>
-        <h1 class="display">Discover your <em>true</em>&nbsp;self</h1>
+        <h1 class="display">The values test that <em>shows its work</em></h1>
         <p class="lede">
-          Uncover the values you actually live by — and what they mean for the
-          <strong>work that fits you</strong> and <strong>how you love</strong>.
-          In a few minutes of honest trade-offs, Compass maps what really drives you,
-          grounded in the <strong>Schwartz model of basic human values</strong>.
+          A first honest map of your priorities — what you'd keep and what you'd
+          trade away — on the <strong>Schwartz model of basic human values</strong>.
+          You'll sort, then make real trade-offs; we cross-check the two and
+          <strong>show you our confidence</strong>, including where we're unsure.
         </p>
         <div class="btn-row">
           <button class="btn" data-begin>Begin →</button>
-          <span class="fine">~2 minutes · one quick sort</span>
+          <span class="fine">~4 minutes · a sort + 10 trade-offs</span>
         </div>
+        ${progress ? '<p class="fine" style="margin-top:14px"><button class="linklike" data-resume>Resume where you left off →</button></p>' : ''}
+        ${last ? '<p class="fine" style="margin-top:6px"><button class="linklike" data-last>View your last result →</button></p>' : ''}
         <p class="fine" style="margin-top:26px">
-          Built for honest self-reflection and grounded in research. Prototype items —
-          not a clinical or validated assessment. <span style="opacity:.5">· ${BUILD}</span>
+          A reflection aid, not a verdict: prototype items, not a clinical or validated
+          assessment — and no five-minute quiz can read your “true self.”
+          Your answers never leave this device. <span style="opacity:.5">· ${BUILD}</span>
         </p>
       </div>
     </section>`)
-  node.querySelector('[data-begin]').addEventListener('click', () => {
-    const ids = shuffle(VALUES.map((v) => v.id))
-    go('sort', { rounds: [ids.slice(0, ROUND_SIZE), ids.slice(ROUND_SIZE)], roundIndex: 0, moves: 0 })
+  node.querySelector('[data-begin]').addEventListener('click', () => go('primer'))
+  node.querySelector('[data-resume]')?.addEventListener('click', () => {
+    const p = loadProgress()
+    if (p) go(p.step, { order: p.order, sortChanges: p.sortChanges, sortConfirmed: p.sortConfirmed, blockIndex: p.blockIndex, choices: p.choices })
+  })
+  node.querySelector('[data-last]')?.addEventListener('click', () => {
+    const r = decodeResult(loadLast() || '')
+    if (r) go('results', { order: r.order, choices: r.choices, lived: r.lived, shared: false })
   })
 }
 
+/* -------------------------------------------------------------------- primer */
+/** The design bible's "single most important ACT step": frame the construct
+ *  before measuring it, so people don't sort goals or achievements. */
+function viewPrimer() {
+  const node = mount(`
+    <section class="view">
+      <div class="card">
+        ${topbar(true, 'Before you sort')}
+        <div class="qhead">
+          <h2>Values are <em>directions</em>, not destinations</h2>
+        </div>
+        <p class="lede" style="font-size:17px">
+          A goal can be reached — <em>“run a marathon.”</em> A value is a direction you
+          keep walking — <em>“living healthily.”</em> You're about to sort directions:
+          not what you should want, not what you've achieved — what you'd
+          actually steer by when you can't have everything.
+        </p>
+        <div class="ipanel good" style="margin-top:18px">
+          <h4>Honest answers only work if you know this</h4>
+          <ul>
+            <li>There are <strong>no good or bad values</strong> here — Power and Tradition are as legitimate as Benevolence.</li>
+            <li>Sort by what you'd <strong>actually protect</strong>, not what sounds admirable.</li>
+            <li>Every position counts — the middle too.</li>
+          </ul>
+        </div>
+        <div class="stickyfoot">
+          <button class="btn" data-start>Start sorting →</button>
+        </div>
+      </div>
+    </section>`)
+  node.querySelector('[data-back]')?.addEventListener('click', () => go('welcome'))
+  node.querySelector('[data-start]').addEventListener('click', () =>
+    go('sort', { order: shuffle(VALUE_IDS), sortChanges: 0, sortConfirmed: false, blockIndex: 0, choices: [] }))
+}
+
 /* --------------------------------------------------------------------- sort */
-const TUT_KEY = 'compass-sort-tut2' // bumped: the interaction changed to drag
+const TUT_KEY = 'compass-sort-tut3' // bumped: keyboard + single full sort
 const seenTutorial = () => { try { return !!localStorage.getItem(TUT_KEY) } catch { return false } }
 const markTutorial = () => { try { localStorage.setItem(TUT_KEY, '1') } catch {} }
 
 function sortCard(id, rank, total) {
   const v = valueById(id)
   return `
-    <div class="sortcard" data-id="${id}" style="--c:${v.color}" role="listitem" aria-label="${v.short}. Position ${rank + 1} of ${total}.">
+    <div class="sortcard" data-id="${id}" style="--c:${v.color}" role="listitem" tabindex="0"
+         aria-roledescription="sortable value" aria-label="${v.short}. Position ${rank + 1} of ${total}.">
       <span class="sc-grip" aria-hidden="true" title="Drag to reorder">⠿</span>
       <span class="sc-emoji" aria-hidden="true">${VALUE_ICON[id] || ''}</span>
       <span class="sc-text">${v.short}</span>
     </div>`
 }
 
+/** One view for both the importance sort and the optional "lived" re-sort. */
 function viewSort() {
-  const order = state.rounds[state.roundIndex]
-  const ready = state.moves >= ROUND_MIN_MOVES
-  const lastRound = state.roundIndex >= state.rounds.length - 1
+  const livedMode = state.step === 'lived'
+  const order = livedMode ? state.lived : state.order
+  const changes = livedMode ? state.livedChanges : state.sortChanges
+  const confirmed = livedMode ? state.livedConfirmed : state.sortConfirmed
+  const ready = changes >= 1 || confirmed
   const cards = order.map((id, i) => sortCard(id, i, order.length)).join('')
-  const hint = ready
-    ? 'Looks right? Fine-tune, or move on.'
-    : 'Drag what matters most to the top, least to the bottom.'
 
   const tutorial = seenTutorial() ? '' : `
     <div class="tut" data-tut>
@@ -209,7 +329,7 @@ function viewSort() {
         </div>
         <h3>Drag to sort</h3>
         <p>Drag what matters <strong>most</strong> to you up to the <strong>top</strong>, and what matters <strong>least</strong> down to the <strong>bottom</strong>.</p>
-        <p class="tut-fine">A few cards at a time. Don’t overthink the middle.</p>
+        <p class="tut-fine">Keyboard works too: focus a card, press Space to grab, arrows to move, Space to drop.</p>
         <button class="btn" data-tut-ok>Got it →</button>
       </div>
     </div>`
@@ -218,54 +338,145 @@ function viewSort() {
     <section class="view">
       <div class="card">
         <div class="stickyhead">
-          ${topbar(true)}
+          ${topbar(true, livedMode ? 'Reality check' : 'All 10 values')}
           <div class="qhead">
-            <div class="k">Round ${state.roundIndex + 1} of 2 · ${order.length} values</div>
-            <h2>Drag what matters <em>most</em> to the top</h2>
-            <p class="qsub">…and what matters <em>least</em> to the bottom. The ones in the middle can stay as they are.</p>
+            <div class="k">${livedMode ? 'One more sort — your actual weeks' : 'One sort · every position counts'}</div>
+            <h2>${livedMode
+              ? 'Sort by what your last two weeks <em>actually served</em>'
+              : 'Drag what matters <em>most</em> to the top'}</h2>
+            <p class="qsub">${livedMode
+              ? 'Not what you value — what your time, energy, and attention really went to.'
+              : '…and what matters <em>least</em> to the bottom. All ten compete — every position feeds your map.'}</p>
           </div>
         </div>
-        <div class="ranklbl ranklbl-top">▲ Matters most</div>
-        <div class="sortlist" data-list role="list">${cards}</div>
-        <div class="ranklbl ranklbl-bot">▼ Matters least</div>
+        <div class="ranklbl ranklbl-top">▲ ${livedMode ? 'Got the most of my weeks' : 'Matters most'}</div>
+        <div class="sortlist" data-list role="list" aria-label="${livedMode ? 'Sort values by lived time' : 'Sort values by importance'}">${cards}</div>
+        <div class="ranklbl ranklbl-bot">▼ ${livedMode ? 'Got the least' : 'Matters least'}</div>
+        <div class="sr-live" aria-live="polite" data-live></div>
         <div class="stickyfoot">
-          <button class="btn" data-next ${ready ? '' : 'disabled'}>${lastRound ? 'See your results →' : 'Next round →'}</button>
-          <span class="fine">${hint}</span>
+          <button class="btn" data-next ${ready ? '' : 'disabled'}>${livedMode ? 'See your gap →' : 'Next: the trade-offs →'}</button>
+          ${ready ? '' : '<button class="btn ghost" data-asis>This order is already right →</button>'}
+          <span class="fine" data-hint>${ready ? 'Looks right? Fine-tune, or move on.' : 'Drag to reorder — or confirm if it already reads true.'}</span>
         </div>
       </div>
       ${tutorial}
     </section>`)
 
   node.querySelector('[data-back]')?.addEventListener('click', () =>
-    (state.roundIndex > 0 ? go('sort', { roundIndex: state.roundIndex - 1, moves: ROUND_MIN_MOVES }) : go('welcome')))
+    livedMode ? go('results', { livedJustDone: false }) : go('primer'))
   node.querySelector('[data-tut-ok]')?.addEventListener('click', () => { markTutorial(); render() })
-  node.querySelector('[data-next]')?.addEventListener('click', () => {
-    if (state.moves < ROUND_MIN_MOVES) return
-    if (lastRound) go('results')
-    else go('sort', { roundIndex: state.roundIndex + 1, moves: 0 })
+  node.querySelector('[data-asis]')?.addEventListener('click', () => {
+    if (livedMode) { state.livedConfirmed = true } else { state.sortConfirmed = true }
+    proceedFromSort(livedMode)
   })
-  wireDragSort(node.querySelector('[data-list]'))
+  node.querySelector('[data-next]')?.addEventListener('click', () => {
+    const ok = livedMode ? (state.livedChanges >= 1 || state.livedConfirmed) : (state.sortChanges >= 1 || state.sortConfirmed)
+    if (ok) proceedFromSort(livedMode)
+  })
+  const list = node.querySelector('[data-list]')
+  wireDragSort(list, livedMode)
+  wireKeyboardSort(list, livedMode)
 }
 
-/** Update the sort footer/progress in place after a drop (no full re-render). */
-function updateSortChrome() {
-  const ready = state.moves >= ROUND_MIN_MOVES
-  const lastRound = state.roundIndex >= state.rounds.length - 1
+function proceedFromSort(livedMode) {
+  if (livedMode) go('results', { livedJustDone: true })
+  else go('maxdiff', { blockIndex: 0, choices: [] })
+}
+
+function commitOrder(list, livedMode) {
+  const next = Array.from(list.querySelectorAll('.sortcard')).map((c) => c.dataset.id)
+  const prev = livedMode ? state.lived : state.order
+  const changed = next.some((id, i) => id !== prev[i])
+  if (livedMode) state.lived = next
+  else state.order = next
+  if (changed) {
+    if (livedMode) state.livedChanges += 1
+    else state.sortChanges += 1
+  }
+  saveProgress()
+  return changed
+}
+
+/** Refresh footer state + stale aria position labels in place (no re-render). */
+function updateSortChrome(livedMode) {
+  const changes = livedMode ? state.livedChanges : state.sortChanges
+  const confirmed = livedMode ? state.livedConfirmed : state.sortConfirmed
+  const ready = changes >= 1 || confirmed
   const next = root.querySelector('[data-next]')
-  if (next) { next.disabled = !ready; next.textContent = lastRound ? 'See your results →' : 'Next round →' }
-  const hint = root.querySelector('.stickyfoot .fine')
-  if (hint) hint.textContent = ready ? 'Looks right? Fine-tune, or move on.' : 'Drag what matters most to the top, least to the bottom.'
+  if (next) next.disabled = !ready
+  const asis = root.querySelector('[data-asis]')
+  if (asis && ready) asis.remove()
+  const hint = root.querySelector('[data-hint]')
+  if (hint) hint.textContent = ready ? 'Looks right? Fine-tune, or move on.' : 'Drag to reorder — or confirm if it already reads true.'
   const bar = root.querySelector('.progress > i')
-  if (bar) bar.style.width = `${Math.round(((state.roundIndex + Math.min(state.moves, ROUND_MIN_MOVES) / ROUND_MIN_MOVES) / 2) * 100)}%`
+  if (bar) bar.style.width = `${flowPct()}%`
+  const cards = root.querySelectorAll('.sortcard')
+  cards.forEach((c, i) => {
+    const v = valueById(c.dataset.id)
+    c.setAttribute('aria-label', `${v.short}. Position ${i + 1} of ${cards.length}.`)
+  })
+}
+
+function announce(msg) {
+  const live = root.querySelector('[data-live]')
+  if (live) { live.textContent = ''; setTimeout(() => { live.textContent = msg }, 30) }
+}
+
+/* Keyboard reorder: focus a card, Space/Enter grabs, arrows move, Space drops,
+   Escape cancels. Every committed move counts toward the engagement gate. */
+function wireKeyboardSort(list, livedMode) {
+  if (!list) return
+  let grabbed = null // dataset.id of the grabbed card
+  list.addEventListener('keydown', (e) => {
+    const card = e.target.closest?.('.sortcard')
+    if (!card) return
+    const cards = Array.from(list.querySelectorAll('.sortcard'))
+    const idx = cards.indexOf(card)
+    const v = valueById(card.dataset.id)
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault()
+      if (grabbed === card.dataset.id) {
+        grabbed = null
+        card.classList.remove('kbd-grabbed')
+        commitOrder(list, livedMode)
+        updateSortChrome(livedMode)
+        announce(`${v.name} dropped at position ${idx + 1} of ${cards.length}.`)
+      } else {
+        list.querySelectorAll('.kbd-grabbed').forEach((c) => c.classList.remove('kbd-grabbed'))
+        grabbed = card.dataset.id
+        card.classList.add('kbd-grabbed')
+        announce(`${v.name} grabbed. Use arrow keys to move, Space to drop.`)
+      }
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      const delta = e.key === 'ArrowUp' ? -1 : 1
+      if (grabbed === card.dataset.id) {
+        const swap = cards[idx + delta]
+        if (!swap) return
+        if (delta < 0) list.insertBefore(card, swap)
+        else list.insertBefore(swap, card)
+        card.focus()
+        announce(`${v.name} moved to position ${idx + 1 + delta} of ${cards.length}.`)
+      } else {
+        cards[Math.max(0, Math.min(cards.length - 1, idx + delta))]?.focus()
+      }
+    } else if (e.key === 'Escape' && grabbed) {
+      e.preventDefault()
+      grabbed = null
+      card.classList.remove('kbd-grabbed')
+      announce('Move cancelled.')
+    }
+  })
 }
 
 /**
  * Pointer drag-to-reorder with LIVE displacement: the dragged card (translucent)
  * tracks the finger 1:1; the other cards smoothly shift to open a gap where it
  * would land. Rects are cached once on grab (no per-move layout reads). The
- * reorder only commits on drop. Whole card is draggable; text never selects.
+ * reorder only commits on drop — and only a real order CHANGE counts toward
+ * the engagement gate (pixel wiggles don't).
  */
-function wireDragSort(list) {
+function wireDragSort(list, livedMode) {
   if (!list) return
   let drag = null; let dir = 0; let raf = 0
 
@@ -330,7 +541,6 @@ function wireDragSort(list) {
     dir = 0; if (raf) { cancelAnimationFrame(raf); raf = 0 }
     const d = drag; drag = null
     const c = d.idx < 0 ? d.origIdx : d.idx
-    const moved = Math.abs(d.lastY + window.scrollY - d.startPageY) > 6
     const order = d.meta.map((m) => m.i).filter((i) => i !== d.origIdx)
     order.splice(Math.max(0, Math.min(order.length, c)), 0, d.origIdx)
 
@@ -353,133 +563,276 @@ function wireDragSort(list) {
       setTimeout(() => { for (const f of firsts) f.el.style.transition = '' }, 220)
     })
 
-    if (moved) {
-      state.rounds[state.roundIndex] = order.map((i) => d.meta[i].el.dataset.id)
-      state.moves += 1
-      updateSortChrome()
-    }
+    if (commitOrder(list, livedMode)) updateSortChrome(livedMode)
   }
   list.addEventListener('pointerup', end)
   list.addEventListener('pointercancel', end)
+}
+
+/* ------------------------------------------------------------------- maxdiff */
+/** Each value appears in exactly 4 blocks and has 4 facets — show a FRESH
+ *  phrasing on each appearance so the same value never reads verbatim twice.
+ *  Display-only: scoring stays keyed by value id. */
+function facetFor(id, blockIndex) {
+  const v = valueById(id)
+  const facets = v.facets && v.facets.length ? v.facets : [v.short]
+  let n = 0
+  for (let i = 0; i <= blockIndex; i++) if (MAXDIFF_BLOCKS[i].valueIds.includes(id)) n++
+  return facets[(n - 1 + facets.length) % facets.length]
+}
+
+/** Per-block reframes: the SAME best/least task through a different lens, so
+ *  block 7 doesn't look like block 2. Zero psychometric impact. */
+const MD_FRAMES = [
+  { k: 'You can’t keep all four', h: 'Which matters <em>most</em> — and which <em>least</em>?' },
+  { k: 'A normal Tuesday', h: 'What quietly drives an <em>ordinary</em> day?' },
+  { k: 'Under pressure', h: 'If you could protect just <em>one</em>, which?' },
+  { k: 'The one you’d defend', h: 'Which would you <em>argue for</em> to someone who disagreed?' },
+  { k: 'Strip away the polish', h: 'Ignore what looks good on paper — what’s <em>left</em>?' },
+  { k: 'Your hardest week', h: 'Which of these still holds when things are <em>hard</em>?' },
+  { k: 'Where your time goes', h: 'Which one actually gets your <em>hours</em>?' },
+  { k: 'The trade you’d make', h: 'Which would you give up <em>last</em>?' },
+  { k: 'Close to the bone', h: 'Which feels most like <em>you</em> — and least?' },
+  { k: 'Last one', h: 'One more: what <em>wins</em>, and what gives?' },
+]
+
+function viewMaxdiff() {
+  const block = MAXDIFF_BLOCKS[state.blockIndex]
+  const chosen = state.choices.find((c) => c.blockId === block.id) || { blockId: block.id, best: null, worst: null }
+  const last = state.blockIndex >= MAXDIFF_BLOCKS.length - 1
+  const ready = chosen.best && chosen.worst
+
+  const rows = block.valueIds.map((id) => {
+    const v = valueById(id)
+    const cls = chosen.best === id ? ' most' : chosen.worst === id ? ' least' : ''
+    return `
+      <div class="md-row${cls}" data-id="${id}">
+        <span class="label"><span class="vemoji" aria-hidden="true">${VALUE_ICON[id] || ''}</span><span class="dot" style="background:${valueInk(id)};color:${valueInk(id)}"></span><span class="txt">${facetFor(id, state.blockIndex)}</span></span>
+        <span class="pick">
+          <button class="most${chosen.best === id ? ' on' : ''}" data-most="${id}" aria-pressed="${chosen.best === id}">Most</button>
+          <button class="least${chosen.worst === id ? ' on' : ''}" data-least="${id}" aria-pressed="${chosen.worst === id}">Least</button>
+        </span>
+      </div>`
+  }).join('')
+
+  const node = mount(`
+    <section class="view">
+      <div class="card">
+        <div class="stickyhead">
+          ${topbar(true, `Trade-off ${state.blockIndex + 1} of ${MAXDIFF_BLOCKS.length}`)}
+          <div class="qhead">
+            <div class="k">${MD_FRAMES[state.blockIndex % MD_FRAMES.length].k}</div>
+            <h2>${MD_FRAMES[state.blockIndex % MD_FRAMES.length].h}</h2>
+            <p class="qsub">This is where honesty lives: every option is legitimate, but they can't all win.</p>
+          </div>
+        </div>
+        <div class="md-list">${rows}</div>
+        <div class="stickyfoot">
+          <button class="btn" data-next ${ready ? '' : 'disabled'}>${last ? 'See your results →' : 'Next →'}</button>
+          <span class="fine">${ready ? 'Locked in? On you go.' : 'Pick one Most and one Least.'}</span>
+        </div>
+      </div>
+    </section>`)
+
+  node.querySelector('[data-back]')?.addEventListener('click', () => {
+    if (state.blockIndex > 0) go('maxdiff', { blockIndex: state.blockIndex - 1 })
+    else go('sort')
+  })
+  node.querySelectorAll('[data-most]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.getAttribute('data-most')
+    const c = { blockId: block.id, best: id, worst: chosen.worst === id ? null : chosen.worst }
+    state.choices = [...state.choices.filter((x) => x.blockId !== block.id), c]
+    spark(b.getBoundingClientRect(), id)
+    saveProgress(); render()
+  }))
+  node.querySelectorAll('[data-least]').forEach((b) => b.addEventListener('click', () => {
+    const id = b.getAttribute('data-least')
+    const c = { blockId: block.id, best: chosen.best === id ? null : chosen.best, worst: id }
+    state.choices = [...state.choices.filter((x) => x.blockId !== block.id), c]
+    saveProgress(); render()
+  }))
+  node.querySelector('[data-next]')?.addEventListener('click', () => {
+    if (!ready) return
+    if (last) go('results', { shared: false })
+    else go('maxdiff', { blockIndex: state.blockIndex + 1 })
+  })
 }
 
 /* ------------------------------------------------------------------- results */
 /** Map a signed lean (~ z-score range) to a 2–98% knob position. */
 const knobPos = (v, scale = 22) => 50 + Math.max(-46, Math.min(46, v * scale))
 
-/** Top-3 values as a % composition (a "mix"), normalised to total 100. */
-function valuesMix(profile) {
-  const top = profile.ranked.slice(0, 3)
-  const zs = top.map((id) => profile.combined[id])
-  const min = Math.min(...zs)
-  const w = zs.map((z) => (z - min) + 0.35) // small floor: keeps the 3rd > 0% but lets the mix spread
-  const sum = w.reduce((a, b) => a + b, 0) || 1
-  const pcts = w.map((x) => Math.round((x / sum) * 100)).sort((a, b) => b - a) // descending
-  const diff = 100 - pcts.reduce((a, b) => a + b, 0) // total exactly 100, preserving order:
-  if (diff >= 0) pcts[0] += diff // surplus → onto the largest
-  else pcts[pcts.length - 1] += diff // deficit → off the smallest
-  // `top` is already ordered by rank (strongest first), so the biggest % lines up
-  // with the top value — keeping "Mostly X" consistent with the bar.
-  return top.map((id, i) => ({ id, name: valueById(id).name, color: valueById(id).color, pct: pcts[i] }))
+const CONF_LABEL = { high: 'both signals agree', medium: 'signals lean together', low: 'your signals disagree', single: 'one signal only' }
+
+/** One small, concrete ACT-style step per value, for the lived-gap card. */
+const ACTION_HINTS = {
+  self_direction: 'block two hours this week that are entirely yours to direct',
+  stimulation: 'put one genuinely new thing on this week’s calendar',
+  hedonism: 'plan one unhurried pleasure — and don’t multitask it',
+  achievement: 'name the one result this week that would feel like real progress',
+  power: 'take the lead on one decision you’ve been deferring',
+  security: 'fix one small thing that’s been quietly worrying you',
+  conformity: 'repair one expectation you’ve been letting slide with people who matter',
+  tradition: 'do one ritual properly — a call, a meal, an observance',
+  benevolence: 'give one person an hour with no agenda',
+  universalism: 'act once, concretely, on the issue you keep caring about from a distance',
+}
+
+function computeProfile() {
+  const ranking = scoreRanking(state.order)
+  const maxdiff = scoreMaxDiff(MAXDIFF_BLOCKS, state.choices)
+  return buildProfile({ tiers: ranking, maxdiff })
 }
 
 function viewResults() {
-  // Combine the two rounds: each value scored by its within-round rank.
-  const s1 = scoreRanking(state.rounds[0]).scores
-  const s2 = scoreRanking(state.rounds[1]).scores
-  const scores = {}
-  VALUES.forEach((v) => { scores[v.id] = (s1[v.id] || 0) + (s2[v.id] || 0) })
-  const profile = buildProfile({ tiers: { scores, answered: VALUES.length } })
-
+  const profile = computeProfile()
   const identity = synthesizeIdentity(profile)
   const career = careerReport(profile, VALUE_BY_ID, 3)
   const work = workInsights(profile)
   const compass = relationshipCompass(profile)
   const love = loveInsights(profile)
   const signal = relationshipSignal(profile)
-  const dom = HIGHER_ORDER_META[profile.dominantHigher]
-  const idColor = hoColor(profile.dominantHigher)
+  const idColor = hoColor(identity.accentDim)
   const list = (items) => items.map((t) => `<li>${t}</li>`).join('')
 
-  /* ---- Scene 1: TRUE SELF — the identity reveal + values mix ---- */
-  const mix = valuesMix(profile)
-  const mixBar = `<div class="mixbar">${mix.map((m) => `<span class="mixseg" style="width:${m.pct}%;background:${m.color}"></span>`).join('')}</div>`
-  const mixLegend = `<div class="mixlegend">${mix.map((m) => `<span class="mixleg"><span class="mixdot" style="background:${m.color}"></span>${m.name} <b>${m.pct}%</b></span>`).join('')}</div>`
-  const sceneIdentity = `
-    <section class="scene scene-identity" style="--accent:${idColor}">
-      <div class="scene-inner center">
-        <div class="eyebrow">Your true self</div>
-        <p class="id-pre">You are</p>
-        <h1 class="id-name">${identity.name}</h1>
-        <p class="id-essence">${identity.essence}</p>
-        <p class="id-mixline">Mostly <strong>${mix[0].name}</strong>, with <strong>${mix[1].name}</strong> and a touch of <strong>${mix[2].name}</strong>.</p>
-        ${mixBar}
-        ${mixLegend}
-        <p class="id-portrait">${identity.portrait}</p>
-      </div>
-      <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
-    </section>`
+  // Persist + permalink: the URL fragment IS the result (nothing leaves the device).
+  const code = encodeResult({ order: state.order, choices: state.choices, lived: state.lived })
+  if (!state.shared) saveLast(code)
+  try { history.replaceState(null, '', `#r=${code}`) } catch {}
 
-  /* ---- Scene 2: VALUES — the constellation + top drivers ---- */
-  const lo = -1.6; const hi = 1.6
-  const pctOf = (c) => Math.round(Math.max(0, Math.min(1, (c - lo) / (hi - lo))) * 100)
+  /* ---- convergence & confidence ---- */
+  const agreeCount = VALUE_IDS.filter((id) => profile.valueConfidence[id] !== 'low').length
+  const conv = profile.convergence ?? 0
+  const convLine = conv >= 0.6
+    ? `Your sort and your trade-offs <strong>agreed on ${agreeCount} of 10 values</strong> — a consistent snapshot.`
+    : conv >= 0.3
+      ? `Your sort and your trade-offs agreed on ${agreeCount} of 10 values — decent agreement, so hold the details loosely.`
+      : `Your sort and your trade-offs <strong>disagreed noticeably</strong> (${agreeCount} of 10 aligned). Treat this whole snapshot loosely — or retake when you have quiet.`
+
+  /* ---- provenance, reframed as a FLEX (not a hedge): proof it's yours ---- */
+  const top1 = profile.ranked[0]
+  const bestPicks = state.choices.filter((c) => c.best === top1).length
+  const appearances = MAXDIFF_BLOCKS.filter((b) => b.valueIds.includes(top1)).length
+  const provenance = `This isn't a generic read — you ranked <strong>${valueById(top1).name}</strong> #1 and stood by it in ${bestPicks} of the ${appearances} trade-offs it faced.`
+
+  /* ---- the crown: one vivid line, built from the user's OWN values ---- */
+  const crown = identity.crown
+  const crownHtml = crown.balanced
+    ? `<p class="id-crown">Balanced across directions — no single pull to name, and that's a real result.</p>`
+    : `<p class="id-crown">${crown.lead} — you'd sooner lose <span style="color:${valueInk(crown.bottomId)}">${crown.bottomNoun}</span> than <span style="color:${valueInk(crown.topId)}">${crown.topNoun}</span>.</p>`
+
+  /* ---- Scene 1: YOUR COMPASS — shape first, then the vivid line, then honesty ---- */
+  const chip = (id) => `<span class="chip conf-${profile.valueConfidence[id]}"><span class="d"></span>${CONF_LABEL[profile.valueConfidence[id]]}</span>`
   const drivers = profile.ranked.slice(0, 3).map((id, i) => {
     const v = valueById(id)
     return `
       <div class="driver">
         <span class="dn">${i + 1}</span>
         <div class="dbody">
-          <strong style="color:${v.color}">${v.name}</strong>
-          <span class="meter"><i style="width:${pctOf(profile.combined[id])}%;background:linear-gradient(90deg,${v.color},${v.color}99)"></i></span>
+          <strong style="color:${valueInk(id)}">${v.name}</strong> ${chip(id)}
           <small>${v.blurb}</small>
         </div>
       </div>`
   }).join('')
+  const axisBars = identity.axes.map((a) => `
+    <div class="cdim">
+      <div class="clabels"><span>${a.left}</span><span>${a.right}</span></div>
+      <div class="ctrack"><span class="cmid"></span><span class="cknob" style="left:${knobPos(a.value)}%"></span></div>
+      <p class="creflect">${a.strength === 'balanced' ? 'Genuinely balanced — no lean to report.' : `A ${a.strength} lean, drawn from your own ranking.`}</p>
+    </div>`).join('')
+  const sceneIdentity = `
+    <section class="scene scene-identity scene-hero" style="--accent:${idColor}">
+      <div class="scene-inner center">
+        <div class="eyebrow">Your compass</div>
+        <div class="hero-shape" role="img" aria-label="Your values map. Top values: ${identity.traits.join(', ')}.">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
+        ${crownHtml}
+        <h1 class="id-name" style="font-size:clamp(26px,5vw,40px)">${identity.headline}</h1>
+        <div class="drivers" style="text-align:left">${drivers}</div>
+        <p class="scene-fine">${provenance}</p>
+        <p class="scene-fine">${convLine}</p>
+      </div>
+      <div class="scroll-cue" aria-hidden="true">scroll ↓</div>
+    </section>`
+
+  /* ---- Scene 2: THE FORCES — the two axes + how-to-read (on demand) ---- */
+  const domGated = profile.higherMargin >= 0.15
+    ? `Your centre of gravity is <strong>${HIGHER_ORDER_META[profile.dominantHigher].name}</strong>.`
+    : `Your pull is <strong>balanced</strong> across directions — no single centre of gravity, which is a real result, not a failure to find one.`
   const sceneValues = `
     <section class="scene scene-values">
       <div class="scene-inner">
-        <div class="eyebrow">What you value</div>
-        <h2 class="scene-h2" style="color:${idColor}">Your core values</h2>
-        <p class="scene-fine">Your centre of gravity is <strong>${dom.name}</strong>. Below: the three priorities that rose to the top — relative to <em>your</em> own ranking, not other people.</p>
-        <div class="constellation">${renderCircumplex(profile, { theme: themeMode(theme) === 'light' ? 'bloom' : 'dark' })}</div>
-        <div class="drivers">${drivers}</div>
+        <div class="eyebrow">The forces underneath</div>
+        <h2 class="scene-h2" style="color:${idColor}">What pulls your shape</h2>
+        <p class="scene-fine">${domGated}</p>
+        <div class="compass">${axisBars}</div>
+        <p class="id-portrait" style="margin-top:20px">${identity.portrait}</p>
+        <details class="howto">
+          <summary>How to read your shape ↑</summary>
+          <p class="scene-fine">Each dot on your compass is one value — the further from the centre, the more it matters to you.
+          Values on opposite sides pull against each other${profile.circumplex.magnitude >= 0.5 ? '; the glowing arrow is your overall pull' : ''}.
+          Every position is relative to <em>your own</em> ranking, not to other people.</p>
+        </details>
       </div>
     </section>`
 
-  /* ---- Scene 3: WORK — the career archetype, richly answered ---- */
+  /* ---- Scene 3: WORK — abstains honestly when the signal is weak ---- */
   const primary = career[0]
-  const alsoLeans = career.slice(1, 3).filter((a) => a.band !== 'weak')
-  const roles = primary.roles.map((r) => `<span class="role">${r}</span>`).join('')
-  const alsoHtml = alsoLeans.length
-    ? `<div class="also">
-         <span class="also-k">You also lean</span>
-         ${alsoLeans.map((a) => `<span class="also-chip" style="--accent:${a.accent}">${a.name}</span>`).join('')}
-       </div>`
-    : ''
-  const sceneWork = `
-    <section class="scene scene-work" style="--accent:${primary.accent}">
-      <div class="scene-inner">
-        <div class="eyebrow">The work that fits you</div>
-        <div class="arch-hero" data-key="${primary.key}">
-          ${archetypeArt(primary, { light: themeMode(theme) === 'light' })}
-          <img class="arch-photo" alt="" data-src="./img/archetype-${primary.key}.webp">
-          <div class="arch-band band-${primary.band}">${primary.band === 'strong' ? 'strong fit' : primary.band === 'clear' ? 'clear lean' : 'a lean'}</div>
+  let sceneWork
+  if (career.lowSignal) {
+    sceneWork = `
+      <section class="scene scene-work" style="--accent:${idColor}">
+        <div class="scene-inner">
+          <div class="eyebrow">The work that fits you</div>
+          <h2 class="scene-h2">No clear lean yet — and we won't invent one</h2>
+          <p class="arch-story">Your answers don't separate enough for an honest career read: the closest direction
+          (<strong>${primary.name}</strong>) isn't distinguishable from what a random sort produces. Most quizzes would
+          bluff here. Two things sharpen it: retake when you can give it full attention, and do the
+          one-minute reality check at the end — where your weeks actually go often says more than a sort.</p>
         </div>
-        <h2 class="scene-h2 arch-name">${primary.name}</h2>
-        <p class="arch-tag">${primary.tagline}</p>
-        <p class="arch-story">${primary.reasoning}</p>
-        <div class="panel-grid">
-          <div class="ipanel good"><h4>You thrive when</h4><ul>${list(work.thrive)}</ul></div>
-          <div class="ipanel warn"><h4>What drains you</h4><ul>${list(work.drains)}</ul></div>
+      </section>`
+  } else {
+    const alsoLeans = career.slice(1, 3).filter((a) => a.band !== 'weak')
+    const roles = primary.roles.map((r) => `<span class="role">${r}</span>`).join('')
+    const alsoHtml = alsoLeans.length
+      ? `<div class="also">
+           <span class="also-k">You also lean</span>
+           ${alsoLeans.map((a) => `<span class="also-chip" style="--accent:${a.accent}">${a.name}</span>`).join('')}
+         </div>`
+      : ''
+    const bandHtml = (primary.band === 'strong' || primary.band === 'clear')
+      ? `<div class="arch-band band-${primary.band}">${primary.band === 'strong' ? 'strong lean' : 'clear lean'} · beats ~${primary.band === 'strong' ? '95' : '90'}% of random sorts</div>`
+      : ''
+    sceneWork = `
+      <section class="scene scene-work" style="--accent:${primary.accent}">
+        <div class="scene-inner">
+          <div class="eyebrow">The work that fits you</div>
+          <div class="arch-hero" data-key="${primary.key}">
+            ${archetypeArt(primary, { light: themeMode(theme) === 'light' })}
+            <img class="arch-photo" alt="" data-src="./img/archetype-${primary.key}.webp">
+            ${bandHtml}
+          </div>
+          <h2 class="scene-h2 arch-name">${primary.name}</h2>
+          <p class="arch-tag">${primary.tagline}</p>
+          <p class="arch-story">${primary.reasoning}</p>
+          ${primary.caveat ? `<p class="scene-fine calib">⚠ ${primary.caveat}</p>` : ''}
+          <div class="panel-grid">
+            <div class="ipanel good"><h4>You thrive when</h4><ul>${list(work.thrive)}</ul></div>
+            <div class="ipanel warn"><h4>What drains you</h4><ul>${list(work.drains)}</ul></div>
+          </div>
+          <p class="rolelabel">Roles that tend to fit</p>
+          <div class="roles">${roles}</div>
+          ${alsoHtml}
+          <div class="ipanel" style="margin-top:16px"><h4>Make it useful this week</h4><ul>
+            <li>Which of these roles have you already gravitated toward — and what does that tell you?</li>
+            <li>Not changing careers? Shape one task this month toward <strong>${valueById(profile.ranked[0]).name}</strong> and see how it feels.</li>
+          </ul></div>
+          <p class="scene-fine calib">Honest calibration: values-fit predicts job <em>satisfaction</em> only modestly
+          (~3–4% of the variance) — this is the kind of work you'll likely <em>enjoy</em>, not what you'll be best at, and not destiny.</p>
         </div>
-        <p class="rolelabel">Roles that tend to fit</p>
-        <div class="roles">${roles}</div>
-        ${alsoHtml}
-        <p class="scene-fine calib">Values point to the kind of work you’ll <em>enjoy</em> — not what you’ll be best <em>at</em>, and not destiny. Treat this as a direction worth exploring.</p>
-      </div>
-    </section>`
+      </section>`
+  }
 
-  /* ---- Scene 4: LOVE — how you love + what fits you, richly answered ---- */
+  /* ---- Scene 4: LOVE — reflection + conversation, never partner-shopping ---- */
   const dims = compass.map((d) => `
     <div class="cdim">
       <div class="clabels"><span>${d.left}</span><span>${d.right}</span></div>
@@ -493,29 +846,56 @@ function viewResults() {
         <h2 class="scene-h2">Love, your way</h2>
         <p class="love-summary">${love.summary}</p>
         <div class="panel-grid">
-          <div class="ipanel good"><h4>Look for a partner who…</h4><ul>${list(love.lookFor)}</ul></div>
-          <div class="ipanel warn"><h4>Be wary of</h4><ul>${list(love.beWary)}</ul></div>
+          <div class="ipanel good"><h4>Worth naming out loud</h4><ul>${list(love.talk)}</ul></div>
+          <div class="ipanel warn"><h4>Worth noticing about you</h4><ul>${list(love.noticing)}</ul></div>
         </div>
         <p class="rolelabel">The dynamics underneath</p>
         <div class="compass">${dims}</div>
         <p class="signal">✨ ${signal.text}</p>
-        <p class="scene-fine">There’s no single “type” to find — research says compatibility can’t be predicted from values alone. This maps how <em>you</em> tend to love, so you can choose, and talk, with clear eyes.</p>
+        <p class="scene-fine">There's no single “type” to find — research says compatibility can't be predicted from
+        values alone, so we won't prescribe a partner. This maps how <em>you</em> tend to love, so you can choose, and talk, with clear eyes.</p>
       </div>
     </section>`
 
-  /* ---- Scene 5: tensions + close ---- */
+  /* ---- Scene 5: tensions + the stated-vs-lived gap ---- */
   const tensions = profile.tensions.length
     ? `<div class="tensions">
          ${profile.tensions.map((t) => `<div class="tension">${valueById(t.a).name} <span class="vs">⟷</span> ${valueById(t.b).name}</div>`).join('')}
        </div>
-       <p class="scene-fine">Opposing values you <em>both</em> prize — the real trade-offs you navigate, in work and in love.</p>`
-    : `<p class="scene-fine">Your top values sit comfortably together — no strong internal tug-of-war surfaced.</p>`
+       <p class="scene-fine">Opposing values you <em>both</em> rank near the top — the real trade-offs you navigate, in work and in love.</p>`
+    : `<p class="scene-fine">No strong internal tug-of-war surfaced — your top values sit on the same side of the circle.</p>`
+
+  let gapHtml = ''
+  if (state.lived) {
+    const impRank = Object.fromEntries(state.order.map((id, i) => [id, i]))
+    const livRank = Object.fromEntries(state.lived.map((id, i) => [id, i]))
+    const gaps = VALUE_IDS
+      .map((id) => ({ id, delta: livRank[id] - impRank[id], imp: impRank[id] + 1, liv: livRank[id] + 1 }))
+      .sort((a, b) => b.delta - a.delta)
+    const neglected = gaps.filter((g) => g.delta >= 3 && g.imp <= 5).slice(0, 2)
+    gapHtml = neglected.length
+      ? `<div class="ipanel warn" id="gap"><h4>Your stated-vs-lived gap</h4><ul>
+          ${neglected.map((g) => `<li>You rank <strong>${valueById(g.id).name}</strong> #${g.imp} — but your last two weeks served it #${g.liv}.
+          One small step: ${ACTION_HINTS[g.id]}.</li>`).join('')}
+        </ul><p class="scene-fine" style="margin-top:10px">A gap isn't a failure — weeks bend to constraints. It's the most useful thing this page can show you.</p></div>`
+      : `<div class="ipanel good" id="gap"><h4>Your stated-vs-lived gap</h4>
+          <p class="scene-fine">Your weeks track your priorities closely — alignment is the quiet win. Re-check in a month; drift is normal.</p></div>`
+  } else {
+    gapHtml = `
+      <div class="ipanel" id="gap"><h4>Reality check (1 minute)</h4>
+        <p class="scene-fine">These were your <em>stated</em> priorities. Now sort the same ten by what your last two weeks
+        <em>actually served</em> — the divergence is usually the most honest thing here.</p>
+        <button class="btn" data-lived style="margin-top:10px">Sort my actual weeks →</button>
+      </div>`
+  }
+
   const sceneClose = `
     <section class="scene scene-close">
       <div class="scene-inner">
         <div class="eyebrow">The tensions you carry</div>
         <h2 class="scene-h2">Where you'll feel the pull</h2>
         ${tensions}
+        ${gapHtml}
         <div class="disclaimer">
           <p class="scene-fine">
             <strong>A mirror, not a verdict.</strong> A prototype built on the Schwartz circumplex — not a personality
@@ -524,13 +904,35 @@ function viewResults() {
           </p>
         </div>
         <div class="foot">
-          <button class="btn" data-restart>Start again</button>
-          <p class="scene-fine" style="margin-top:14px"><a href="../docs/RESEARCH_values-to-career-and-partner.md">The research behind this →</a></p>
+          ${state.shared ? '<button class="btn" data-takeit>Take it yourself →</button>' : `
+          <div class="btn-row" style="justify-content:center">
+            <button class="btn" data-share>Copy link to this result</button>
+            <button class="btn ghost" data-restart>Start again</button>
+          </div>
+          <p class="scene-fine" style="margin-top:8px">The link holds only your answers — nothing is stored on any server.</p>`}
+          <p class="scene-fine" style="margin-top:14px"><a href="../docs/RESEARCH_values-to-career-and-partner.md" target="_blank" rel="noopener">The research behind this →</a></p>
         </div>
       </div>
     </section>`
 
-  mount(`<div class="story">${sceneIdentity}${sceneValues}${sceneWork}${sceneLove}${sceneClose}</div>`)
+  const sharedBanner = state.shared
+    ? '<div class="ipanel" style="margin:12px auto;max-width:640px"><p class="scene-fine">You\'re viewing a shared result. It reflects someone\'s answers, not yours.</p></div>'
+    : ''
+  mount(`<div class="story">${sharedBanner}${sceneIdentity}${sceneValues}${sceneWork}${sceneLove}${sceneClose}</div>`)
+
+  // Anticipation beat: a brief "reading" veil while the compass shape draws
+  // itself in, so the reveal lands as a moment. Skipped for reduced-motion and
+  // for shared/saved views (already seen). No claim of extra certainty — it's
+  // the same uncertainty-gated shape, just given a beat to arrive.
+  if (!prefersReduced() && !state.shared && !hashResult) {
+    const veil = document.createElement('div')
+    veil.className = 'reading-veil'
+    veil.innerHTML = '<span class="reading-dot"></span><span>Reading your compass…</span>'
+    document.body.appendChild(veil)
+    requestAnimationFrame(() => veil.classList.add('show'))
+    setTimeout(() => { veil.classList.remove('show'); veil.classList.add('gone') }, 1250)
+    setTimeout(() => veil.remove(), 1750)
+  }
 
   // Try to load the AI illustration for the primary archetype; if absent, the
   // generative SVG art behind it remains (graceful, offline-friendly).
@@ -541,20 +943,44 @@ function viewResults() {
     img.addEventListener('load', () => img.classList.add('loaded'))
     img.setAttribute('src', src)
   })
-  root.querySelector('[data-restart]').addEventListener('click', () =>
-    go('welcome', { rounds: [[], []], roundIndex: 0, moves: 0 }))
+  root.querySelector('[data-restart]')?.addEventListener('click', () => {
+    try { history.replaceState(null, '', location.pathname) } catch {}
+    go('welcome', { order: [], sortChanges: 0, sortConfirmed: false, blockIndex: 0, choices: [], lived: null, livedChanges: 0, livedConfirmed: false, shared: false })
+  })
+  root.querySelector('[data-takeit]')?.addEventListener('click', () => {
+    try { history.replaceState(null, '', location.pathname) } catch {}
+    go('welcome', { order: [], sortChanges: 0, sortConfirmed: false, blockIndex: 0, choices: [], lived: null, livedChanges: 0, livedConfirmed: false, shared: false })
+  })
+  root.querySelector('[data-lived]')?.addEventListener('click', () =>
+    go('lived', { lived: shuffle(VALUE_IDS), livedChanges: 0, livedConfirmed: false }))
+  root.querySelector('[data-share]')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget
+    try {
+      await navigator.clipboard.writeText(location.href)
+      btn.textContent = 'Link copied ✓'
+      setTimeout(() => { btn.textContent = 'Copy link to this result' }, 1800)
+    } catch {
+      prompt('Copy this link:', location.href)
+    }
+  })
+  if (state.livedJustDone) {
+    state.livedJustDone = false
+    setTimeout(() => document.getElementById('gap')?.scrollIntoView({ behavior: 'smooth' }), 350)
+  }
 }
 
 /* -------------------------------------------------------------------- render */
 function render() {
   if (state.step === 'welcome') viewWelcome()
-  else if (state.step === 'sort') viewSort()
+  else if (state.step === 'primer') viewPrimer()
+  else if (state.step === 'sort' || state.step === 'lived') viewSort()
+  else if (state.step === 'maxdiff') viewMaxdiff()
   else if (state.step === 'results') viewResults()
   // Enable gentle scene-by-scene scroll-snap only on the results story.
   document.body.dataset.view = state.step === 'results' ? 'story' : 'flow'
   // Scroll to top only when the STEP changes — not on every selection
   // re-render (so tapping a value doesn't yank the page up).
-  const viewKey = `${state.step}:${state.roundIndex}`
+  const viewKey = `${state.step}:${state.blockIndex}`
   if (viewKey !== lastViewKey) { window.scrollTo({ top: 0, behavior: 'smooth' }); lastViewKey = viewKey }
 }
 let lastViewKey = null
@@ -576,6 +1002,16 @@ if (themeSel) {
   })
 }
 
+// Boot: a #r=… fragment IS a result (shared link or saved permalink) — decode
+// and show it. A malformed fragment falls through to the welcome screen.
+const hashResult = /^#r=(.+)$/.exec(location.hash || '')
+if (hashResult) {
+  const r = decodeResult(decodeURIComponent(hashResult[1]))
+  if (r) {
+    const own = loadLast() === decodeURIComponent(hashResult[1])
+    Object.assign(state, { step: 'results', order: r.order, choices: r.choices, lived: r.lived, shared: !own })
+  }
+}
 render()
 
 // Register the service worker so the app is installable & works offline.

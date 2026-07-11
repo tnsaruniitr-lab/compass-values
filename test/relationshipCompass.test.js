@@ -2,9 +2,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  PORTRAIT_ITEMS, MAXDIFF_BLOCKS, analyze,
-  DIMENSIONS, relationshipCompass, relationshipSignal,
+  MAXDIFF_BLOCKS, analyze, buildProfile, scoreTiers,
+  DIMENSIONS, relationshipCompass, relationshipSignal, loveInsights,
 } from '../engine/index.js'
+import { PORTRAIT_ITEMS } from '../engine/portraitItems.js'
 import { makeRespondent, ARCHETYPES as SYNTH } from '../demo/synthetic.js'
 
 const profileFor = (weights) => {
@@ -25,12 +26,29 @@ test('compass: 5 dimensions, each with reflection + talk + a side', () => {
   }
 })
 
-test('GUARDRAIL: compass output never contains a score, %, or "ideal partner"', () => {
-  for (const w of [SYNTH.caregiver, SYNTH.achiever, SYNTH.traditionalist, SYNTH.conflicted]) {
-    const text = JSON.stringify(relationshipCompass(profileFor(w))) + JSON.stringify(relationshipSignal(profileFor(w)))
+test('GUARDRAIL: compass + loveInsights never contain scores, %, partner-shopping, or clinical vocabulary', () => {
+  for (const w of [SYNTH.caregiver, SYNTH.achiever, SYNTH.traditionalist, SYNTH.conflicted, {}]) {
+    const p = profileFor(w)
+    const text = JSON.stringify(relationshipCompass(p)) + JSON.stringify(relationshipSignal(p)) + JSON.stringify(loveInsights(p))
     assert.ok(!/%/.test(text), 'no percentages')
     assert.ok(!/ideal partner|best match|compatib|soulmate/i.test(text), 'no predictive partner-matching language')
+    assert.ok(!/look for a partner|look for someone|be wary of a|avoidant|attachment/i.test(text), 'no partner-selection prescriptions or clinical vocabulary')
   }
+})
+
+test('shared_meaning is pole-aware: a polarized worldview reads as strong, not center', () => {
+  // Devout traditionalist: tradition at the top, universalism at the bottom —
+  // the (trad+univ)/2 average used to cancel to "center" for exactly this user.
+  const tradFirst = buildProfile({ tiers: scoreTiers({ tradition: 'most', security: 'most', universalism: 'least', stimulation: 'least' }) })
+  const dim = relationshipCompass(tradFirst).find((d) => d.key === 'shared_meaning')
+  assert.equal(dim.side, 'right', `polarized traditionalist must read as strong worldview (got ${dim.side})`)
+  assert.ok(/tradition/i.test(dim.reflection), 'reflection is anchored to the tradition pole')
+
+  // Committed activist: universalism top, tradition bottom — same fix, other pole.
+  const univFirst = buildProfile({ tiers: scoreTiers({ universalism: 'most', benevolence: 'most', tradition: 'least', power: 'least' }) })
+  const dim2 = relationshipCompass(univFirst).find((d) => d.key === 'shared_meaning')
+  assert.equal(dim2.side, 'right')
+  assert.ok(/fair|everyone/i.test(dim2.reflection), 'reflection is anchored to the universalism pole')
 })
 
 test('caregiver leans relationship-first on Ambition↔Connection and high caretaking', () => {

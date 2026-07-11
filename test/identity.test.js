@@ -2,9 +2,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  PORTRAIT_ITEMS, MAXDIFF_BLOCKS, analyze,
+  MAXDIFF_BLOCKS, analyze, buildProfile, scoreTiers,
   synthesizeIdentity, workInsights, loveInsights,
 } from '../engine/index.js'
+import { PORTRAIT_ITEMS } from '../engine/portraitItems.js'
 import { makeRespondent, ARCHETYPES as SYNTH } from '../demo/synthetic.js'
 
 const profileFor = (weights) => {
@@ -15,26 +16,59 @@ const profileFor = (weights) => {
   }).profile
 }
 
-const KNOWN = new Set([
-  'The Free Idealist', 'The Restless Explorer', 'The Bold Trailblazer',
-  'The Quiet Idealist', 'The Balanced Navigator', 'The Driven Achiever',
-  'The Loyal Guardian', 'The Steady Anchor', 'The Determined Builder',
-])
-
-test('synthesizeIdentity returns a known name, essence, traits, and a portrait', () => {
+test('synthesizeIdentity: continuum output — headline, essence, portrait, 2 axes', () => {
   for (const w of [SYNTH.caregiver, SYNTH.achiever, SYNTH.traditionalist, SYNTH.conflicted]) {
     const id = synthesizeIdentity(profileFor(w))
-    assert.ok(KNOWN.has(id.name), `unexpected name ${id.name}`)
-    assert.ok(id.essence.length > 5 && id.portrait.length > 40)
+    assert.ok(id.headline.length > 10 && id.essence.length > 20 && id.portrait.length > 40)
     assert.equal(id.traits.length, 3)
-    // portrait should weave in the top value name
-    assert.ok(id.portrait.includes(id.traits[0]), 'portrait references top value')
+    assert.equal(id.axes.length, 2)
+    for (const a of id.axes) {
+      assert.ok(['left', 'right'].includes(a.side))
+      assert.ok(['balanced', 'slight', 'clear'].includes(a.strength))
+    }
+    // headline is grounded in the user's actual top value
+    assert.ok(id.headline.includes(id.traits[0]), `headline "${id.headline}" names the top value`)
+    // portrait names what is traded away (honest cost), not only flattery
+    assert.ok(/trade away/.test(id.portrait), 'portrait includes the honest cost')
   }
 })
 
-test('caregiver → an Idealist/Guardian identity; achiever → Achiever/Builder/Trailblazer', () => {
-  assert.ok(/Idealist|Guardian/.test(synthesizeIdentity(profileFor(SYNTH.caregiver)).name))
-  assert.ok(/Achiever|Builder|Trailblazer/.test(synthesizeIdentity(profileFor(SYNTH.achiever)).name))
+test('GUARDRAIL: identity never emits a named type box ("You are The X")', () => {
+  for (const w of [SYNTH.caregiver, SYNTH.achiever, SYNTH.traditionalist, SYNTH.conflicted, {}]) {
+    const id = synthesizeIdentity(profileFor(w))
+    const text = JSON.stringify(id)
+    assert.ok(!/The [A-Z][a-z]+ [A-Z][a-z]+/.test(text), `type-label leak in ${text.slice(0, 120)}`)
+    assert.ok(!/You are The/i.test(text))
+  }
+})
+
+test('crown: built from the user’s OWN top+bottom values, never a type label', () => {
+  for (const w of [SYNTH.caregiver, SYNTH.achiever, SYNTH.traditionalist]) {
+    const p = profileFor(w)
+    const id = synthesizeIdentity(p)
+    assert.ok(id.crown, 'crown present')
+    if (!id.crown.balanced) {
+      assert.equal(id.crown.topId, p.top[0], 'crown leads with the user’s actual #1 value')
+      assert.equal(id.crown.bottomId, p.bottom[p.bottom.length - 1], 'crown trades the user’s actual last value')
+      assert.ok(/^A [a-z]/.test(id.crown.lead), 'crown lead is an adjective phrase, not a proper-noun Type')
+      assert.ok(!/The [A-Z]/.test(id.crown.lead), 'no "The Type" label')
+    }
+  }
+})
+
+test('crown softens to balanced when the profile is directionless', () => {
+  // symmetric opposites cancel → near-zero circumplex magnitude → no crown identity
+  const p = buildProfile({ tiers: scoreTiers({ self_direction: 'most', security: 'most', stimulation: 'least', conformity: 'least' }) })
+  const id = synthesizeIdentity(p)
+  if (p.circumplex.magnitude < 0.5) assert.equal(id.crown.balanced, true, 'directionless profile gets the balanced crown, not an invented identity')
+})
+
+test('symmetric profile → axes report "balanced", not an invented lean', () => {
+  // Opposing placements cancel across both axes: no lean exists in the data.
+  const tiers = scoreTiers({ self_direction: 'most', security: 'most', stimulation: 'least', conformity: 'least' })
+  const id = synthesizeIdentity(buildProfile({ tiers }))
+  assert.ok(id.axes.every((a) => a.strength === 'balanced'), `symmetric input must read balanced (got ${JSON.stringify(id.axes.map((a) => a.strength))})`)
+  assert.ok(/balance/i.test(id.essence), 'essence hedges instead of asserting a lean')
 })
 
 test('workInsights gives 3 thrive + 2 drains, all non-empty strings, no %', () => {
@@ -44,12 +78,13 @@ test('workInsights gives 3 thrive + 2 drains, all non-empty strings, no %', () =
   for (const s of [...w.thrive, ...w.drains]) { assert.ok(typeof s === 'string' && s.length > 5); assert.ok(!/%/.test(s)) }
 })
 
-test('loveInsights gives a summary + look-for + be-wary, with guardrails', () => {
+test('loveInsights gives summary + noticing + talk, with guardrails', () => {
   for (const wt of [SYNTH.caregiver, SYNTH.achiever, SYNTH.traditionalist]) {
     const li = loveInsights(profileFor(wt))
     assert.ok(li.summary.length > 10)
-    assert.ok(li.lookFor.length >= 1 && li.beWary.length >= 1)
+    assert.ok(li.noticing.length >= 1 && li.talk.length >= 1)
     const text = JSON.stringify(li)
-    assert.ok(!/%|soulmate|ideal partner is|guaranteed|will last/i.test(text), 'no predictive partner-matching claims')
+    assert.ok(!/%|soulmate|ideal partner|guaranteed|will last/i.test(text), 'no predictive partner-matching claims')
+    assert.ok(!/look for a partner|be wary of a|avoidant|attachment style/i.test(text), 'no partner-shopping or clinical vocabulary')
   }
 })

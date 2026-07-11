@@ -137,27 +137,50 @@ export const ARCHETYPE_BY_KEY = Object.fromEntries(ARCHETYPES.map((a) => [a.key,
 
 const protoVec = (a) => VALUE_IDS.map((id) => a.proto[id] ?? 0)
 
-/** Qualitative band for a profile-match correlation. NO percentages by design. */
+/**
+ * Qualitative band for a profile-match correlation. NO percentages by design.
+ *
+ * Cutoffs are NOISE-CALIBRATED (2026-07-04): 4,000 fully random sessions
+ * (random full ranking + random MaxDiff picks) run through this exact
+ * pipeline put the TOP archetype's r at p50=0.43, p75=0.58, p90=0.69,
+ * p95=0.75. So: 'strong' beats ~95% of random input, 'clear' ~90%,
+ * 'slight' ~75% — and anything below 0.58 is indistinguishable from noise
+ * (a consistent real profile scores ~0.9). The previous hand-picked cutoffs
+ * (0.55/0.3/0.1) awarded 'strong' to 29% of pure noise.
+ */
 export function matchBand(r) {
-  if (r >= 0.55) return 'strong'
-  if (r >= 0.3) return 'clear'
-  if (r >= 0.1) return 'slight'
+  if (r >= 0.75) return 'strong'
+  if (r >= 0.69) return 'clear'
+  if (r >= 0.58) return 'slight'
   return 'weak'
 }
+
+/** Top-archetype r below this is indistinguishable from random input → abstain. */
+export const LOW_SIGNAL_R = 0.58
 
 /**
  * Rank archetypes by how well the user's value *shape* matches each prototype.
  * Uses Pearson profile-correlation (defensible; avoids difference-score pitfalls).
  *
+ * Archetypes flagged needsInterest (Maker/Realistic) are capped at 'slight':
+ * the app's own research doc certifies values carry ~zero information about
+ * hands-on (Realistic) interest, so a confident verdict there would be invented.
+ *
  * @param {{combined: Record<string, number>}} profile  from buildProfile()
- * @returns {(Archetype & {score:number, band:string})[]} sorted best → worst
+ * @returns {(Archetype & {score:number, band:string, caveat?:string})[]} sorted best → worst
  */
 export function rankArchetypes(profile) {
   const u = VALUE_IDS.map((id) => profile.combined[id] ?? 0)
   return ARCHETYPES
     .map((a) => {
       const r = pearson(u, protoVec(a))
-      return { ...a, score: r, band: matchBand(r) }
+      let band = matchBand(r)
+      let caveat
+      if (a.needsInterest && (band === 'strong' || band === 'clear')) {
+        band = 'slight'
+        caveat = 'Values can’t see hands-on interest — this one needs a different kind of question, so we hold it loosely.'
+      }
+      return { ...a, score: r, band, ...(caveat ? { caveat } : {}) }
     })
     .sort((x, y) => y.score - x.score)
 }
@@ -187,7 +210,20 @@ export function explainMatch(profile, archetype, valueMeta) {
   if (lowDrivers.length) parts.push(`${lowDrivers.map(nm).join(' and ')} matters less to you`)
   const lead = parts.length ? `Because ${parts.join(', and ')}, ` : ''
   const story = lead ? archetype.story.charAt(0).toLowerCase() + archetype.story.slice(1) : archetype.story
-  return `${lead}${story}`
+
+  // Honest contrast: the strongest salient value where the user DISAGREES with
+  // the prototype. Silently dropping disagreements made the reasoning read more
+  // certain than the data — the spec's template requires the contrast clause.
+  const mismatch = salient
+    .filter((id) => {
+      const c = profile.combined[id] ?? 0
+      return Math.abs(c) >= 0.35 && Math.sign(c) !== Math.sign(archetype.proto[id] ?? 0)
+    })
+    .sort((a, b) => Math.abs(profile.combined[b]) - Math.abs(profile.combined[a]))[0]
+  const contrast = mismatch
+    ? ` (Though your ${(profile.combined[mismatch] > 0 ? 'high' : 'low')} ${nm(mismatch)} cuts against this — hold it loosely.)`
+    : ''
+  return `${lead}${story}${contrast}`
 }
 
 /**
@@ -213,13 +249,30 @@ export function workInsights(profile) {
 
 /**
  * Convenience: top-N archetypes with reasoning, ready for the UI.
+ *
+ * Honesty gates:
+ * - `lowSignal` is true when the best match is indistinguishable from random
+ *   input (r < LOW_SIGNAL_R) or the user's own signals disagree (convergence
+ *   < 0.2) — the UI must render an abstain state, not a verdict.
+ * - A needsInterest archetype (Maker) never takes the primary slot: values
+ *   carry ~no Realistic-interest information, so it is shown as a capped,
+ *   caveated lean below a values-detectable primary.
+ *
  * @param {*} profile @param {Record<string,{name:string}>} valueMeta @param {number} n
  */
 export function careerReport(profile, valueMeta, n = 3) {
   const ranked = rankArchetypes(profile)
-  return ranked.slice(0, n).map((a, i) => ({
+  if (ranked[0].needsInterest) {
+    const firstDetectable = ranked.findIndex((a) => !a.needsInterest)
+    if (firstDetectable > 0) ranked.splice(firstDetectable, 0, ...ranked.splice(0, firstDetectable))
+  }
+  const lowSignal = ranked[0].score < LOW_SIGNAL_R ||
+    (profile.convergence != null && profile.convergence < 0.2)
+  const report = ranked.slice(0, n).map((a, i) => ({
     ...a,
     rank: i + 1,
     reasoning: explainMatch(profile, a, valueMeta),
   }))
+  report.lowSignal = lowSignal
+  return report
 }

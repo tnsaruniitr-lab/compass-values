@@ -260,6 +260,20 @@ button, .btn, .dotbtn, .backlink, .md-row, .pick button { touch-action: manipula
   .pick { width: 100%; }
   .pick button { flex: 1; padding: 13px; font-size: 14px; }
 
+  /* Keep all FOUR trade-off options visible at once (no scrolling to find the
+     4th, which would let people choose from only the 3 they can see). Trim the
+     sticky header/footer and tighten rows on the trade-off screen. */
+  .view:has(.md-list) .stickyhead { padding: 2px 0 6px; margin-bottom: 8px; }
+  .view:has(.md-list) .qhead h2 { font-size: clamp(17px, 4.6vw, 21px); }
+  .view:has(.md-list) .qhead .k { margin-bottom: 4px; }
+  .view:has(.md-list) .qhead .qsub { margin-top: 4px; }
+  .md-list { gap: 9px; }
+  .md-row { padding: 10px 14px; gap: 8px; }
+  .md-row .label { font-size: 14px; line-height: 1.3; }
+  .pick button { padding: 11px; min-height: 44px; }
+  .view:has(.md-list) .stickyfoot { margin-top: 12px; padding-top: 10px; }
+  .view:has(.md-list) .stickyfoot .fine { font-size: 11.5px; margin: 0; }
+
   /* Value rows: let the confidence chip drop beneath the name. */
   .vrow { grid-template-columns: auto 1fr; align-items: start; row-gap: 8px; }
   .vrow .vrank { grid-row: 1 / span 2; }
@@ -1018,3 +1032,95 @@ body[data-view="story"] { scroll-snap-type: y proximity; }
 
 .qhead .qsub { font-size: 12.5px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
 .qhead .qsub em { font-style: italic; }
+
+/* ------------------------------------------------------------------------
+   b10 additions — honest-instrument flow
+   ------------------------------------------------------------------------ */
+
+/* Link-styled button (welcome: resume / last result). */
+.linklike {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: var(--accent, #5eead4);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.linklike:hover { opacity: 0.85; }
+
+/* Keyboard sorting: focus + grabbed states must be clearly visible. */
+.sortcard:focus-visible {
+  outline: 2px solid var(--accent, #5eead4);
+  outline-offset: 2px;
+}
+.sortcard.kbd-grabbed {
+  border-color: color-mix(in srgb, var(--c) 70%, transparent);
+  background: color-mix(in srgb, var(--c) 12%, var(--glass));
+  box-shadow: 0 6px 24px -10px color-mix(in srgb, var(--c) 60%, transparent);
+  transform: scale(1.02);
+}
+
+/* Visually-hidden live region for screen-reader reorder announcements. */
+.sr-live {
+  position: absolute; width: 1px; height: 1px; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Sticky footer can now hold two buttons + hint. */
+.stickyfoot { flex-wrap: wrap; row-gap: 8px; }
+
+/* Confidence chip inline with a driver name. */
+.driver .dbody .chip { margin-left: 8px; vertical-align: middle; }
+
+/* ------------------------------------------------------------------------
+   b11 — reveal polish: crown, hero shape, pacing, reading veil, ink
+   ------------------------------------------------------------------------ */
+
+/* The essence "crown" — one vivid line built from the user's own values.
+   The visual peak of the reveal, above the headline. */
+.id-crown {
+  font-family: var(--font-display); font-style: italic;
+  font-size: clamp(21px, 3.6vw, 32px); line-height: 1.25; text-wrap: balance;
+  color: var(--text); margin: 4px auto 10px; max-width: 20ch;
+}
+.id-crown span { font-style: normal; font-weight: 600; }
+
+/* The compass shape promoted to Scene-1 centerpiece. */
+.hero-shape { margin: 6px auto 4px; max-width: 460px; }
+.hero-shape .circ-wrap { margin: 0 auto; }
+
+/* Peak-end pacing: the hero (Scene 1) gets a slower, larger arrival; interior
+   scenes enter tighter/faster so the hero and the close read as the two peaks. */
+.scene-hero { animation: rise 0.95s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.scene-values, .scene-work, .scene-love {
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* "How to read your shape" — instructions on demand, not up-front homework. */
+.howto { margin-top: 22px; }
+.howto > summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; letter-spacing: 0.04em; color: var(--faint);
+  border: 1px solid var(--line); border-radius: 99px; padding: 7px 14px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.howto > summary::-webkit-details-marker { display: none; }
+.howto > summary:hover { color: var(--muted); border-color: var(--line-strong); }
+.howto[open] > summary { color: var(--muted); margin-bottom: 8px; }
+.howto p { margin-top: 0; }
+
+/* Anticipation veil: a held beat before the reveal paints. */
+.reading-veil {
+  position: fixed; inset: 0; z-index: 80; display: flex; gap: 14px;
+  align-items: center; justify-content: center; flex-direction: column;
+  background: var(--bg-1); color: var(--muted);
+  font-size: 15px; letter-spacing: 0.02em;
+  opacity: 0; transition: opacity 0.4s ease;
+}
+.reading-veil.show { opacity: 1; }
+.reading-veil.gone { opacity: 0; }
+.reading-dot {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2px solid var(--line-strong); border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .reading-dot { animation: none; } }

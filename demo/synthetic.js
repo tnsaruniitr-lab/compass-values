@@ -6,7 +6,8 @@
  *
  * @typedef {import('../engine/values.js').ValueId} ValueId
  */
-import { VALUE_IDS, PORTRAIT_ITEMS, MAXDIFF_BLOCKS } from '../engine/index.js'
+import { VALUE_IDS, MAXDIFF_BLOCKS } from '../engine/index.js'
+import { PORTRAIT_ITEMS } from '../engine/portraitItems.js'
 
 /**
  * @param {Partial<Record<ValueId, number>>} weights  0..1 importance per value (default 0.5)

@@ -3,10 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Compass — discover your true self</title>
-  <meta name="description" content="Discover your true self — the values you really live by, and what they mean for the career and the kind of partner that fit you best. Grounded in the Schwartz circumplex of basic human values." />
-  <meta name="theme-color" content="#0d0b1c" />
-  <meta name="color-scheme" content="dark" />
+  <title>Compass — the values test that shows its work</title>
+  <meta name="description" content="An honest map of your personal values: a ranked sort cross-checked against forced trade-offs on the Schwartz circumplex, with visible confidence — no type labels, no fake percentages." />
+  <link rel="canonical" href="https://trueself.carecompass.me/web/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Compass" />
+  <meta property="og:title" content="Compass — the values test that shows its work" />
+  <meta property="og:description" content="Sort your values, make real trade-offs, and see where your own answers agree — an honest Schwartz-circumplex map with visible confidence." />
+  <meta property="og:url" content="https://trueself.carecompass.me/web/" />
+  <meta property="og:image" content="https://trueself.carecompass.me/web/icon-512.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Compass — the values test that shows its work" />
+  <meta name="twitter:description" content="Sort your values, make real trade-offs, and see where your own answers agree — an honest Schwartz-circumplex map with visible confidence." />
+  <meta name="twitter:image" content="https://trueself.carecompass.me/web/icon-512.png" />
+  <meta name="theme-color" content="#f4eee2" />
+  <meta name="color-scheme" content="light dark" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="./icon.svg" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -14,6 +25,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Compass" />
+  <link rel="modulepreload" href="./app.js" />
+  <link rel="modulepreload" href="./circumplex.js" />
+  <link rel="modulepreload" href="./archetypeArt.js" />
+  <link rel="modulepreload" href="../engine/index.js" />
+  <link rel="modulepreload" href="../engine/values.js" />
+  <link rel="modulepreload" href="../engine/maxdiffBlocks.js" />
+  <link rel="modulepreload" href="../engine/scoring.js" />
+  <link rel="modulepreload" href="../engine/careerArchetypes.js" />
+  <link rel="modulepreload" href="../engine/relationshipCompass.js" />
+  <link rel="modulepreload" href="../engine/identity.js" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -36,11 +57,17 @@
     </select>
   </div>
 
-  <main id="app" class="app"></main>
-
-  <noscript>
-    <div class="stage"><div class="card">This experience needs JavaScript enabled.</div></div>
-  </noscript>
+  <main id="app" class="app">
+    <noscript>
+      <section class="view"><div class="card">
+        <h1>Compass — an honest values test</h1>
+        <p>Compass maps your personal values on the Schwartz circumplex: you rank ten basic human values,
+        then confirm them through forced trade-offs, and the app shows where your two answers agree —
+        with visible confidence instead of a personality type. It runs entirely in your browser and
+        needs JavaScript enabled.</p>
+      </div></section>
+    </noscript>
+  </main>
 
   <script type="module" src="./app.js"></script>
 </body>

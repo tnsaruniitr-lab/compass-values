@@ -144,33 +144,47 @@ export function buildProfile({ portrait = null, maxdiff = null, tiers = null } =
   let angle = (Math.atan2(y, x) * 180) / Math.PI
   if (angle < 0) angle += 360
 
-  // Higher-order dimension scores (mean of member values) + dominant
+  // Higher-order dimension scores (mean of member values) + dominant.
+  // higherMargin = the gap between the top two dimensions: near-zero means the
+  // "dominant" label is a coin flip and the UI must NOT assert a centre of gravity.
   /** @type {Record<string, number>} */ const higher = {}
   for (const dim of Object.keys(HIGHER_ORDER)) higher[dim] = mean(HIGHER_ORDER[dim].map((id) => combined[id]))
-  const dominantHigher = Object.keys(higher).sort((a, b) => higher[b] - higher[a])[0]
+  const higherSorted = Object.keys(higher).sort((a, b) => higher[b] - higher[a])
+  const dominantHigher = higherSorted[0]
+  const higherMargin = higher[higherSorted[0]] - higher[higherSorted[1]]
 
-  // Cross-signal convergence: Pearson r between the two signals across values.
+  // Cross-signal convergence: mean pairwise Pearson r across ALL signal pairs.
   // This is a heuristic, *uncalibrated* confidence indicator (see plan §Caveats).
   let convergence = null
-  if (zSignals.length === 2) {
-    convergence = pearson(VALUE_IDS.map((id) => zSignals[0][id]), VALUE_IDS.map((id) => zSignals[1][id]))
+  if (zSignals.length >= 2) {
+    const rs = []
+    for (let i = 0; i < zSignals.length; i++) {
+      for (let j = i + 1; j < zSignals.length; j++) {
+        rs.push(pearson(VALUE_IDS.map((id) => zSignals[i][id]), VALUE_IDS.map((id) => zSignals[j][id])))
+      }
+    }
+    convergence = mean(rs)
   }
 
-  // Per-value confidence from sign agreement + strength across signals.
+  // Per-value confidence from sign agreement + strength across ALL signals.
   /** @type {Record<string, 'high'|'medium'|'low'|'single'>} */ const valueConfidence = {}
   for (const id of VALUE_IDS) {
     if (zSignals.length < 2) { valueConfidence[id] = 'single'; continue }
-    const a = zSignals[0][id]; const b = zSignals[1][id]
-    const agree = Math.sign(a) === Math.sign(b)
-    if (agree && Math.abs(a) > 0.4 && Math.abs(b) > 0.4) valueConfidence[id] = 'high'
+    const zs = zSignals.map((s) => s[id])
+    const signs = new Set(zs.map((z) => Math.sign(z)))
+    const agree = signs.size === 1
+    if (agree && zs.every((z) => Math.abs(z) > 0.4)) valueConfidence[id] = 'high'
     else if (agree) valueConfidence[id] = 'medium'
     else valueConfidence[id] = 'low'
   }
 
-  // Tensions: opposing values BOTH clearly above the person's average.
+  // Tensions: opposing values the person GLOBALLY prizes — both in their top-4
+  // ranking AND both clearly above their own average. Anchoring on the global
+  // ranking keeps tensions stable across sessions instead of threshold noise.
+  const topSet = new Set(ranked.slice(0, 4))
   const tensions = []
   for (const [a, b] of OPPOSING_PAIRS) {
-    if (combined[a] > 0.4 && combined[b] > 0.4) {
+    if (topSet.has(a) && topSet.has(b) && combined[a] > 0.3 && combined[b] > 0.3) {
       tensions.push({ a, b, strength: Math.min(combined[a], combined[b]) })
     }
   }
@@ -184,6 +198,7 @@ export function buildProfile({ portrait = null, maxdiff = null, tiers = null } =
     circumplex: { x, y, angle, magnitude, quadrant: quadrantForAngle(angle) },
     higher,
     dominantHigher,
+    higherMargin,
     convergence,
     valueConfidence,
     tensions,

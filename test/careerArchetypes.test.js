@@ -2,9 +2,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  PORTRAIT_ITEMS, MAXDIFF_BLOCKS, VALUE_BY_ID, analyze,
+  MAXDIFF_BLOCKS, VALUE_BY_ID, analyze, buildProfile, scoreTiers,
   ARCHETYPES, rankArchetypes, careerReport, matchBand,
 } from '../engine/index.js'
+import { PORTRAIT_ITEMS } from '../engine/portraitItems.js'
 import { makeRespondent, ARCHETYPES as SYNTH } from '../demo/synthetic.js'
 
 const profileFor = (weights) => {
@@ -55,9 +56,42 @@ test('careerReport gives reasoning strings and ranks, no percentage leakage', ()
   }
 })
 
-test('matchBand thresholds behave', () => {
-  assert.equal(matchBand(0.8), 'strong')
-  assert.equal(matchBand(0.4), 'clear')
-  assert.equal(matchBand(0.15), 'slight')
+test('matchBand thresholds are noise-calibrated (see careerArchetypes.js provenance)', () => {
+  assert.equal(matchBand(0.8), 'strong')   // > p95 of random input
+  assert.equal(matchBand(0.7), 'clear')    // > p90 of random input
+  assert.equal(matchBand(0.6), 'slight')   // > p75 of random input
+  assert.equal(matchBand(0.4), 'weak')     // median random sort scores ~0.43
   assert.equal(matchBand(-0.2), 'weak')
+})
+
+test('Maker (needsInterest) is capped at "slight" and never takes the primary slot', () => {
+  // A profile shaped exactly like the Maker prototype: values alone cannot
+  // justify a confident Realistic verdict, so the band must be capped.
+  const tiers = scoreTiers({ self_direction: 'most', achievement: 'most', security: 'most', benevolence: 'least', universalism: 'least' })
+  const profile = buildProfile({ tiers })
+  const maker = rankArchetypes(profile).find((a) => a.key === 'maker')
+  assert.ok(maker.score > 0.75, `sanity: maker should correlate strongly (got ${maker.score})`)
+  assert.equal(maker.band, 'slight')
+  assert.ok(maker.caveat && maker.caveat.length > 10, 'capped Maker carries an honest caveat')
+  const report = careerReport(profile, VALUE_BY_ID, 3)
+  assert.notEqual(report[0].key, 'maker', 'primary slot must be a values-detectable archetype')
+})
+
+test('careerReport exposes a lowSignal abstain flag', () => {
+  const strong = careerReport(profileFor(SYNTH.achiever), VALUE_BY_ID, 3)
+  assert.equal(typeof strong.lowSignal, 'boolean')
+  assert.equal(strong.lowSignal, false, 'a coherent synthetic profile is not low-signal')
+  // Near-flat profile → indistinguishable from noise → must abstain.
+  const flat = careerReport(buildProfile({ tiers: scoreTiers({ hedonism: 'most' }) }), VALUE_BY_ID, 3)
+  assert.equal(typeof flat.lowSignal, 'boolean')
+})
+
+test('explainMatch includes the honest-contrast clause when a salient value disagrees', () => {
+  // Founder prototype wants LOW security; give the user HIGH security + high founder drivers.
+  const tiers = scoreTiers({ self_direction: 'most', achievement: 'most', security: 'most', tradition: 'least', universalism: 'least' })
+  const profile = buildProfile({ tiers })
+  const report = careerReport(profile, VALUE_BY_ID, 8)
+  const founder = report.find((a) => a.key === 'founder')
+  assert.ok(founder, 'founder present in full report')
+  assert.ok(/cuts against this/.test(founder.reasoning), `expected contrast clause, got: ${founder.reasoning}`)
 })

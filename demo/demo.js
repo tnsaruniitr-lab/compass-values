@@ -1,6 +1,7 @@
 // @ts-check
 /** CLI demo: run synthetic archetypes through the engine and print profiles. */
-import { PORTRAIT_ITEMS, MAXDIFF_BLOCKS, analyze, valueById, HIGHER_ORDER_META } from '../engine/index.js'
+import { MAXDIFF_BLOCKS, analyze, valueById, HIGHER_ORDER_META } from '../engine/index.js'
+import { PORTRAIT_ITEMS } from '../engine/portraitItems.js'
 import { makeRespondent, ARCHETYPES } from './synthetic.js'
 
 const bar = (v, lo = -1.6, hi = 1.6, width = 22) => {
