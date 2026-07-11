@@ -255,7 +255,107 @@ opposite-pair co-occurrence, 3-signal convergence, pole-aware `shared_meaning`,
 the Maker cap + abstain flag, the mismatch clause, and rendered-layer guardrails
 banning type labels and percentages.
 
-### Still open (tracked above)
-Portrait signal (licensing-gated) · rendered share-card image + friend-compare
-view · domain move + indexable landing · funnel telemetry · Supabase persistence
-& email retest loop · O*NET career links · couples/AI-reflection/team layers.
+---
+
+## STATUS LEDGER — updated 2026-07-11 (build `b15 · full-observatory`)
+
+*Everything below reflects what is actually deployed to production
+(trueself.carecompass.me). 55/55 tests. Later passes went well beyond the
+original Phase-1 scope — the product now has the wow layer, the career
+interest patch, the Observatory design system, and the "Own it" offer.*
+
+### ✅ Shipped to production
+- **Honest instrument (Phase 1):** single comparable ranking (retake-invariant),
+  MaxDiff with opposites competing, continuum reveal (no type boxes / no fake
+  %), per-value confidence chips + convergence verdict, career **abstain** with
+  noise-calibrated bands, love-module Finkel firewall, keyboard-accessible sort,
+  values-vs-goals primer, stated-vs-lived gap sort.
+- **Quick wins:** serve.js hardened (repo-leak closed, CSP/HSTS/nosniff, gzip,
+  ETag/304, 301 root, robots), permalinks + resume, OG/canonical, modulepreload.
+- **Wow layer (b12):** 45 leading-pair signatures, 5 derived "aspect" gauges
+  (how you decide / conflict / pressure / fuel / risk), top-3 deep reads,
+  distinctiveness-split detector — all in `engine/insightBank.js`, generated and
+  adversarially reviewed (Barnum / Schwartz-accuracy / cost-honesty).
+- **Career sharpening (b11):** 12-item RIASEC quick-fire (`engine/interests.js`),
+  blended scoring (0.7 values / 0.3 interests, separately noise-calibrated),
+  Top-3 directions with weekly micro-actions + O*NET links, Maker unlocked.
+- **The Observatory (b13–b15):** full design language in `web/styles.css` (four
+  "skies": Midnight/Abyss/Nebula/Dawn), starfield, self-drawing chart, typewriter
+  crown, instrument-gauge aspects, **instrument-first hero landing**, and
+  "Observation № n" framing derived from local history.
+- **"Own it" offer (b14):** print-grade plate (`web/plate.js`), signed receipts +
+  methodology appendix (`web/receipts.js`), 6-month revisit `.ics` + before/after
+  diff, offer card, named-human footer. **Payment rail is a config away** (see
+  next).
+
+### 🔑 BLOCKED ON THE OWNER (small, but nothing proceeds without them)
+1. **Payment link** — create a $9 hosted one-tap link (Stripe/Razorpay Payment
+   Link; success URL `https://trueself.carecompass.me/web/#own=paid`) and paste
+   it into `OWN.payLink` in `web/app.js`. Until then the offer card is hidden;
+   `#own=preview` unlocks the full suite for testing. **Price $9, never $2** —
+   the persona audit found $2 sits below the category credibility floor and the
+   card-friction exceeds the money.
+2. **The dead apex domain** — `trueself.carecompass.me` is a subdomain of an
+   unrelated, broken-apex domain. The $2 audit ranked this the **#1 trust
+   blocker at any price**. Move to a product-branded domain before any paid push.
+3. **Footer identity** — currently "Built by Arun". Confirm the name/wording (a
+   real human on the page was the audit's hard prerequisite for taking money).
+4. **Licensing determination** — the Schwartz-derived portrait items
+   (`engine/portraitItems.js`) stay out of the shipped bundle until commercial
+   rights are confirmed. This also gates adding the *third* signal.
+
+### 📋 NEXT STEPS — recommended build order (nothing here is blocked)
+Ordered by value-per-effort for a solo builder + AI:
+
+1. **Funnel telemetry** *(small)* — the owner is still flying blind on completion
+   rate. A privacy-safe 4-event counter (start → sort done → assessment done →
+   results viewed) with no answer content. Prereq for tuning everything else.
+   *(Analytics endpoint needs the minimal backend below, OR self-hosted Plausible.)*
+2. **Per-result share-card image** *(small)* — shares currently preview with the
+   app icon. `web/plate.js` already renders the plate; add a 1200×630 crop as a
+   dynamic `og:image` (needs an endpoint or a build step to serve a static image
+   per code — simplest: a tiny render worker, or ship the client-rendered plate
+   as a downloadable "share card" first).
+3. **Two-person compare** *(medium)* — the couples-gifter persona's
+   "would-pay-immediately" item and a genuine growth loop. Two permalinks in →
+   overlaid shapes + where values collide + per-dimension `talk()` scripts.
+   Explicitly **no compatibility score** (Finkel firewall). Reuses the existing
+   permalink + circumplex machinery; pure client-side.
+4. **Auto-deploy on push** *(small)* — currently deployed via `railway up`
+   manually. Wire Railway's GitHub trigger on `main` and assert the BUILD tag
+   post-deploy so prod can never silently drift (it was 4 commits behind before
+   this project started).
+5. **Indexable surface** *(medium)* — serve at `/` (drop the `/web/` redirect
+   with a `<base>` tag or absolute paths), prerender the hero + a citable
+   Schwartz explainer, add per-value/per-tension pages for quiz-intent SEO.
+6. **Archetype hero images + top-2 blend** *(small, cosmetic)* — generate the 8
+   webp images from `docs/ARCHETYPE_IMAGE_PROMPTS.md` (code path + fallback
+   already exist), and render true blended identities when top-2 archetype
+   scores are close.
+7. **Minimal backend + retest loop** *(medium)* — the first server: an anonymous
+   Supabase `results` table (slug, payload, engine_version) behind RLS, optional
+   email capture for the 6-month revisit, consent + delete-by-slug. Turns the
+   local-only revisit into a real longitudinal loop. Consistent with the owner's
+   Railway + Supabase tooling.
+8. **Enrichment menu items** *(various)* — see `docs/ENRICHMENT-IDEAS.md`. Top
+   pick: the **values-weighted decision tool** ("weigh a job offer against your
+   measured values") — uniquely reuses data Compass already has, honesty-perfect.
+   Then: values-in-context re-sort, conflict coach, "how we know" science library.
+9. **Phase 4 (depth & revenue)** — cohort norms (after N accumulates + MDS
+   check), profile-grounded AI reflection, facilitator/team overlay. All gated on
+   the backend (7) and traffic (1).
+
+### ⚠️ Guardrails any future work must keep (the brand is honesty)
+- No personality "type" boxes, no fabricated percentages, no Barnum lines
+  (a claim must fail for someone with opposite values). Tests enforce this at
+  the engine AND rendered-HTML layer — keep them green.
+- Every displayed claim shows its provenance (which values drove it) and hedges
+  when the user's two signals disagreed.
+- Never gate or degrade anything currently free, and never fake scarcity
+  ("you've only seen 5%", blurred previews, urgency timers, email-drip). The $2
+  audit's identified trap: that single move burns both brand assets at once.
+- Career/love outputs must abstain honestly rather than bluff on weak signal.
+
+*(The original Phase-1 "What shipped" detail is retained above this ledger for
+history; the STATUS LEDGER is the current source of truth. For a
+developer-onboarding walkthrough of the codebase, see `docs/HANDOFF.md`.)*

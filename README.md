@@ -11,6 +11,11 @@ don't* — instead of dressing a single quiz in the language of certainty. No
 personality "type," no invented percentages, and an explicit **"no clear lean
 yet"** result when the data doesn't support a verdict.
 
+> **New here / taking over the code?** Start with **[`docs/HANDOFF.md`](docs/HANDOFF.md)**
+> (developer onboarding) and **[`docs/ROADMAP-100X.md`](docs/ROADMAP-100X.md)**
+> (status ledger + prioritized next steps). Live at
+> [trueself.carecompass.me](https://trueself.carecompass.me).
+
 > This is a **prototype**. The items are original and **not yet psychometrically
 > validated**, and it makes no clinical claims. See `RESEARCH_AND_PLAN.md` for
 > the full evidence base and open problems, and `docs/ROADMAP-100X.md` for where
