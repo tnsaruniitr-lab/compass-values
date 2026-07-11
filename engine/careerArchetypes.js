@@ -137,6 +137,40 @@ export const ARCHETYPE_BY_KEY = Object.fromEntries(ARCHETYPES.map((a) => [a.key,
 
 const protoVec = (a) => VALUE_IDS.map((id) => a.proto[id] ?? 0)
 
+/* ------------------------------------------------------------------ interests */
+/** RIASEC display-name → letter, for parsing each archetype's `riasec` field. */
+const RIASEC_LETTER = { Realistic: 'R', Investigative: 'I', Artistic: 'A', Social: 'S', Enterprising: 'E', Conventional: 'C' }
+/** @param {Archetype} a @returns {string[]} RIASEC letters this archetype leans on */
+export const archetypeLetters = (a) => a.riasec.split('+').map((s) => RIASEC_LETTER[s.trim()]).filter(Boolean)
+
+/** Mean of the user's interest scores over an archetype's RIASEC letters (−1..1). */
+export function interestMatch(archetype, riasecScores) {
+  const letters = archetypeLetters(archetype)
+  if (!letters.length || !riasecScores) return 0
+  return letters.reduce((s, L) => s + (riasecScores[L] ?? 0), 0) / letters.length
+}
+
+/** Spec §A3 blend weights: values carry most of the signal, interests sharpen it. */
+export const BLEND_W_VALUES = 0.7
+export const BLEND_W_INTERESTS = 0.3
+
+/**
+ * Actionable layer per archetype: a concrete micro-experiment for THIS week
+ * (values point to enjoyment, so the honest next step is a cheap real-world
+ * test, not a career leap) + the matching O*NET interest-area explorer
+ * (U.S. DoL, CC BY 4.0) so the roles list has somewhere real to go.
+ */
+export const ARCHETYPE_ACTIONS = {
+  creative: { action: 'Make one small thing end-to-end this week — a page, a track, a poster — and show it to one person.', onet: 'https://www.onetonline.org/explore/interests/Artistic/' },
+  founder: { action: 'Sell something tiny this week — one listing, one pitch, one offer — and notice how owning the outcome feels.', onet: 'https://www.onetonline.org/explore/interests/Enterprising/' },
+  steady: { action: 'Take one chaotic thing you touch weekly and build the checklist that tames it.', onet: 'https://www.onetonline.org/explore/interests/Conventional/' },
+  helper: { action: 'Give one hour of real help this week — teach, review, or coach someone — and notice your energy afterwards.', onet: 'https://www.onetonline.org/explore/interests/Social/' },
+  expert: { action: 'Pick the question you keep circling and go two levels deeper than the first article.', onet: 'https://www.onetonline.org/explore/interests/Investigative/' },
+  leader: { action: 'Volunteer to run the next meeting or plan — own it start to finish and watch what it does to you.', onet: 'https://www.onetonline.org/explore/interests/Enterprising/' },
+  changemaker: { action: 'Give one concrete hour to the issue you keep caring about from a distance.', onet: 'https://www.onetonline.org/explore/interests/Social/' },
+  maker: { action: 'Fix or build one physical thing this week and notice whether the hours disappeared.', onet: 'https://www.onetonline.org/explore/interests/Realistic/' },
+}
+
 /**
  * Qualitative band for a profile-match correlation. NO percentages by design.
  *
@@ -155,32 +189,63 @@ export function matchBand(r) {
   return 'weak'
 }
 
+/**
+ * Band cutoffs for the BLENDED (values+interests) score, separately
+ * NOISE-CALIBRATED (2026-07-05): 4,000 fully random sessions (random ranking
+ * + random MaxDiff + random interest taps) put the top BLENDED score at
+ * p50=0.38, p75=0.50, p90=0.61, p95=0.68 — while a coherent profile with
+ * matching interests scores ~0.90. So 'strong' beats ~95% of random input,
+ * 'clear' ~90%, 'slight' ~75%, mirroring the values-only bands.
+ */
+export function blendBand(s) {
+  if (s >= 0.68) return 'strong'
+  if (s >= 0.61) return 'clear'
+  if (s >= 0.50) return 'slight'
+  return 'weak'
+}
+
 /** Top-archetype r below this is indistinguishable from random input → abstain. */
 export const LOW_SIGNAL_R = 0.58
+/** Same threshold for the blended path (calibrated separately, p75 of noise). */
+export const LOW_SIGNAL_BLEND = 0.50
 
 /**
  * Rank archetypes by how well the user's value *shape* matches each prototype.
  * Uses Pearson profile-correlation (defensible; avoids difference-score pitfalls).
  *
- * Archetypes flagged needsInterest (Maker/Realistic) are capped at 'slight':
- * the app's own research doc certifies values carry ~zero information about
- * hands-on (Realistic) interest, so a confident verdict there would be invented.
+ * With NO interests signal: archetypes flagged needsInterest (Maker/Realistic)
+ * are capped at 'slight' — values carry ~zero Realistic information, so a
+ * confident verdict there would be invented.
+ * WITH the 12-item interests round: the blend (spec §A3, w_v=0.7 / w_i=0.3)
+ * measures the hands-on dimension directly, so Maker competes honestly and
+ * the cap comes off.
  *
  * @param {{combined: Record<string, number>}} profile  from buildProfile()
- * @returns {(Archetype & {score:number, band:string, caveat?:string})[]} sorted best → worst
+ * @param {{riasec: Record<string, number>, answered: number}|null} [interests]
+ * @returns {(Archetype & {score:number, band:string, caveat?:string, interestFit?:number})[]} sorted best → worst
  */
-export function rankArchetypes(profile) {
+export function rankArchetypes(profile, interests = null) {
   const u = VALUE_IDS.map((id) => profile.combined[id] ?? 0)
+  const useInterests = !!(interests && interests.answered >= 8)
   return ARCHETYPES
     .map((a) => {
       const r = pearson(u, protoVec(a))
-      let band = matchBand(r)
+      let score = r
+      let band
       let caveat
-      if (a.needsInterest && (band === 'strong' || band === 'clear')) {
-        band = 'slight'
-        caveat = 'Values can’t see hands-on interest — this one needs a different kind of question, so we hold it loosely.'
+      let interestFit
+      if (useInterests) {
+        interestFit = interestMatch(a, interests.riasec)
+        score = BLEND_W_VALUES * r + BLEND_W_INTERESTS * interestFit
+        band = blendBand(score)
+      } else {
+        band = matchBand(r)
+        if (a.needsInterest && (band === 'strong' || band === 'clear')) {
+          band = 'slight'
+          caveat = 'Values can’t see hands-on interest — this one needs a different kind of question, so we hold it loosely.'
+        }
       }
-      return { ...a, score: r, band, ...(caveat ? { caveat } : {}) }
+      return { ...a, score, valuesR: r, band, ...(interestFit !== undefined ? { interestFit } : {}), ...(caveat ? { caveat } : {}) }
     })
     .sort((x, y) => y.score - x.score)
 }
@@ -248,31 +313,37 @@ export function workInsights(profile) {
 }
 
 /**
- * Convenience: top-N archetypes with reasoning, ready for the UI.
+ * Convenience: top-N archetypes with reasoning + action layer, ready for the UI.
  *
  * Honesty gates:
  * - `lowSignal` is true when the best match is indistinguishable from random
- *   input (r < LOW_SIGNAL_R) or the user's own signals disagree (convergence
- *   < 0.2) — the UI must render an abstain state, not a verdict.
- * - A needsInterest archetype (Maker) never takes the primary slot: values
- *   carry ~no Realistic-interest information, so it is shown as a capped,
- *   caveated lean below a values-detectable primary.
+ *   input (top score below the noise-calibrated bar for whichever path ran)
+ *   or the user's own value signals disagree (convergence < 0.2) — the UI
+ *   must render an abstain state, not a verdict.
+ * - WITHOUT interests, a needsInterest archetype (Maker) never takes the
+ *   primary slot (values carry ~no Realistic information). WITH the 12-item
+ *   interests round, the blend measures hands-on directly and Maker competes
+ *   on equal terms.
  *
  * @param {*} profile @param {Record<string,{name:string}>} valueMeta @param {number} n
+ * @param {{riasec: Record<string, number>, answered: number}|null} [interests]
  */
-export function careerReport(profile, valueMeta, n = 3) {
-  const ranked = rankArchetypes(profile)
-  if (ranked[0].needsInterest) {
+export function careerReport(profile, valueMeta, n = 3, interests = null) {
+  const useInterests = !!(interests && interests.answered >= 8)
+  const ranked = rankArchetypes(profile, interests)
+  if (!useInterests && ranked[0].needsInterest) {
     const firstDetectable = ranked.findIndex((a) => !a.needsInterest)
     if (firstDetectable > 0) ranked.splice(firstDetectable, 0, ...ranked.splice(0, firstDetectable))
   }
-  const lowSignal = ranked[0].score < LOW_SIGNAL_R ||
+  const lowSignal = ranked[0].score < (useInterests ? LOW_SIGNAL_BLEND : LOW_SIGNAL_R) ||
     (profile.convergence != null && profile.convergence < 0.2)
   const report = ranked.slice(0, n).map((a, i) => ({
     ...a,
     rank: i + 1,
     reasoning: explainMatch(profile, a, valueMeta),
+    ...(ARCHETYPE_ACTIONS[a.key] || {}),
   }))
   report.lowSignal = lowSignal
+  report.usedInterests = useInterests
   return report
 }

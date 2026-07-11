@@ -7,6 +7,7 @@
 export * from './values.js'
 export * from './maxdiffBlocks.js'
 export * from './scoring.js'
+export * from './interests.js'
 export * from './careerArchetypes.js'
 export * from './relationshipCompass.js'
 export * from './identity.js'
